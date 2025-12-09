@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TienLen.Unity.Domain.Aggregates;
 using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Domain.Enums;
+using TienLen.Unity.Domain.Services;
 using TienLen.Unity.Infrastructure;
 using TienLen.Unity.Infrastructure.Network;
 using TienLen.Unity.Infrastructure.Services;
@@ -125,14 +126,25 @@ namespace TienLen.Unity.Presentation.Presenters
                     // Example: GameBoardView.RenderPlayedCards(board);
                 }
             }
+
+            // Check if it's the local player's turn and update Skip button visibility
+            string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
+            if (localUserId == _gameModel.ActivePlayerId)
+            {
+                UpdateSkipButtonHighlight();
+            }
         }
 
         private void OnGameModelActivePlayerChanged(string activePlayerId)
         {
             _logger.LogInformation($"GameModel Active Player Changed: {activePlayerId}");
+            
+            string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
+            bool isLocalPlayerTurn = activePlayerId == localUserId;
+            
             if (StatusText)
             {
-                if (activePlayerId == _gameSession.CurrentRoom.Self.UserId)
+                if (isLocalPlayerTurn)
                 {
                     StatusText.text = "Your Turn!";
                 }
@@ -140,6 +152,12 @@ namespace TienLen.Unity.Presentation.Presenters
                 {
                     StatusText.text = $"It's {GameSeatManager.GetPlayerName(activePlayerId)}'s Turn.";
                 }
+            }
+
+            // Check if it's the local player's turn and update Skip button visibility
+            if (isLocalPlayerTurn)
+            {
+                UpdateSkipButtonHighlight();
             }
         }
 
@@ -215,6 +233,46 @@ namespace TienLen.Unity.Presentation.Presenters
             if (!isLocalPlayerOwner)
             {
                 _logger.LogInformation("Waiting for owner to start the game...");
+            }
+        }
+
+        private void UpdateSkipButtonHighlight()
+        {
+            if (SkipButton == null) return;
+
+            // Check if player has any valid moves against the current board
+            bool hasValidMove = CardValidationHelper.HasValidMove(_gameModel.PlayerHand, _gameModel.CurrentBoard);
+
+            if (!hasValidMove)
+            {
+                // Player has no valid moves - highlight/enable Skip button
+                _logger.LogInformation("Player has no valid moves. Highlighting Skip button.");
+                
+                // Set button to interactable state
+                SkipButton.interactable = true;
+
+                // Highlight the button with a color shift (e.g., brighter/saturated color)
+                var colors = SkipButton.colors;
+                colors.normalColor = new Color(1f, 1f, 0.7f, 1f); // Yellowish highlight
+                SkipButton.colors = colors;
+
+                // Update status text to guide player
+                if (StatusText)
+                {
+                    StatusText.text = "No valid moves. Click Skip to pass.";
+                }
+            }
+            else
+            {
+                // Player has valid moves - reset Skip button to normal state
+                _logger.LogInformation("Player has valid moves available.");
+                
+                // Reset button color to default
+                var colors = SkipButton.colors;
+                colors.normalColor = Color.white; // Default color
+                SkipButton.colors = colors;
+                
+                // StatusText will be set by other methods like OnGameModelActivePlayerChanged
             }
         }
 
@@ -297,7 +355,13 @@ namespace TienLen.Unity.Presentation.Presenters
 
         private async void OnSkipClicked()
         {
-            _logger.LogInformation("Skip Turn clicked. Sending empty play request.");
+            _logger.LogInformation("Skip Turn clicked. Sending pass request.");
+            
+            // Immediately hide action buttons and show "Passed" status locally
+            // if (PlayButton != null) PlayButton.gameObject.SetActive(false);
+            // if (SkipButton != null) SkipButton.gameObject.SetActive(false);
+            if (StatusText != null) StatusText.text = "You Passed!";
+            
             try
             {
                 await _network.SendPassAsync();
@@ -306,6 +370,9 @@ namespace TienLen.Unity.Presentation.Presenters
             {
                  _logger.LogError(ex, "Failed to send skip request.");
                  HandleError("Failed to skip turn.");
+                 // Re-enable buttons on error so player can retry
+                //  if (PlayButton != null) PlayButton.gameObject.SetActive(true);
+                //  if (SkipButton != null) SkipButton.gameObject.SetActive(true);
             }
         }
         
