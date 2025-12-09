@@ -4,7 +4,7 @@ using Cysharp.Threading.Tasks;
 using Nakama;
 using UnityEngine;
 using TienLen.Unity.Infrastructure.Network;
-using TienLen.Unity.Infrastructure.Logging; // Added
+using Serilog;
 
 namespace TienLen.Unity.Infrastructure.Services
 {
@@ -42,11 +42,11 @@ namespace TienLen.Unity.Infrastructure.Services
                 _session.CurrentRoom = currentAuthoritativeMatch;
                 _session.ConnectedPlayers = currentAuthoritativeMatch.Presences.ToList();
                 
-                FastLog.Info($"[LobbyService] Successfully connected to authoritative match: {currentAuthoritativeMatch.Id}.");
+                Log.Information("[LobbyService] Connected to authoritative match: {MatchId}", currentAuthoritativeMatch.Id);
             }
             catch (Exception ex)
             {
-                FastLog.Error($"[LobbyService] Failed to connect to authoritative match: {ex.Message}");
+                Log.Error(ex, "[LobbyService] Failed to connect to authoritative match");
                 throw;
             }
         }
@@ -63,7 +63,7 @@ namespace TienLen.Unity.Infrastructure.Services
             }
             catch (System.Exception ex)
             {
-                FastLog.Error($"[LobbyService] Error leaving table: {ex.Message}");
+                Log.Error(ex, "[LobbyService] Error leaving table");
                 throw;
             }
         }

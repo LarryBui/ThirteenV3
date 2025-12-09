@@ -24,7 +24,6 @@ namespace TienLen.Unity.Presentation.Presenters
         public void OnCardClicked(Card card)
         {
             _logger?.LogInformation("Card clicked: {Card}", card);
-            FastLog.Info("FastLog: Card clicked {Card}", card);
             
             // TODO: UI Selection logic here (Toggle selection state)
         }

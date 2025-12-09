@@ -4,11 +4,11 @@ using System.Threading.Tasks;
 using Google.Protobuf;
 using Nakama;
 using TienLen.Gen; // Generated Protobuf namespace
-using TienLen.Unity.Infrastructure.Logging;
 using TienLen.Unity.Domain.Aggregates;
 using UnityEngine;
 using System.Linq; // Added for LINQ extension methods
 using VContainer;
+using Serilog;
 
 namespace TienLen.Unity.Infrastructure.Network
 {
@@ -121,7 +121,7 @@ namespace TienLen.Unity.Infrastructure.Network
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Error closing socket: {ex.Message}");
+                Log.Error(ex, "Error closing socket");
             }
         }
     }

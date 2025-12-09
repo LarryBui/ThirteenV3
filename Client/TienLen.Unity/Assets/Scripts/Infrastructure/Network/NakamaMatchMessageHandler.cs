@@ -6,7 +6,7 @@ using Nakama;
 using TienLen.Gen;
 using TienLen.Unity.Domain.Aggregates;
 using DomainClasses = TienLen.Unity.Domain.ValueObjects;
-using UnityEngine;
+using Serilog;
 
 namespace TienLen.Unity.Infrastructure.Network
 {
@@ -69,13 +69,13 @@ namespace TienLen.Unity.Infrastructure.Network
                             HandleHandUpdate(payload);
                             break;
                         default:
-                            Debug.LogWarning($"[NakamaMatchMessageHandler] Unknown OpCode: {op}");
+                            Log.Warning("[NakamaMatchMessageHandler] Unknown OpCode: {OpCode}", op);
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[NakamaMatchMessageHandler] Fatal error handling state: {ex.Message}");
+                    Log.Error(ex, "[NakamaMatchMessageHandler] Fatal error handling state");
                     RaiseError($"Fatal protocol error: {ex.Message}");
                 }
             });

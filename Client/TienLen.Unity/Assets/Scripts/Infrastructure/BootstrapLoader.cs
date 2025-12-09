@@ -3,6 +3,7 @@ using VContainer;
 using Cysharp.Threading.Tasks;
 using TienLen.Unity.Infrastructure.Network;
 using TienLen.Unity.Infrastructure.Services;
+using Serilog;
 
 namespace TienLen.Unity.Infrastructure
 {
@@ -42,7 +43,7 @@ namespace TienLen.Unity.Infrastructure
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[Bootstrap] Failed to initialize: {ex.Message}\n{ex.StackTrace}");
+                Log.Error(ex, "[Bootstrap] Failed to initialize");
             }
         }
     }

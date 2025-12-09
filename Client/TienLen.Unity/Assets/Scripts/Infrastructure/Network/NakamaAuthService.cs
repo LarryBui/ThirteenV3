@@ -2,6 +2,7 @@ using System;
 using Nakama;
 using UnityEngine;
 using Cysharp.Threading.Tasks;
+using Serilog;
 
 namespace TienLen.Unity.Infrastructure.Network
 {
@@ -31,6 +32,7 @@ namespace TienLen.Unity.Infrastructure.Network
             var username = $"Tester_{UnityEngine.Random.Range(1000, 9999)}";
 
             Session = await _client.AuthenticateCustomAsync(customId, username, create: true);
+            Log.Information("[Auth] Authenticated custom user: {Username} ({UserId})", Session.Username, Session.UserId);
             return Session;
         }
     }
