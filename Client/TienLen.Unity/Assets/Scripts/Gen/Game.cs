@@ -25,20 +25,21 @@ namespace TienLen.Gen {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CgpnYW1lLnByb3RvEgNhcGkiIgoEQ2FyZBIMCgRzdWl0GAEgASgFEgwKBHJh",
-            "bmsYAiABKAUiPwoQTWF0Y2hTdGFydFBhY2tldBIXCgRoYW5kGAEgAygLMgku",
-            "YXBpLkNhcmQSEgoKcGxheWVyX2lkcxgCIAMoCSInCg9QbGF5Q2FyZFJlcXVl",
-            "c3QSFAoMY2FyZF9pbmRpY2VzGAEgAygFIm0KEFR1cm5VcGRhdGVQYWNrZXQS",
-            "GAoQYWN0aXZlX3BsYXllcl9pZBgBIAEoCRIkChFsYXN0X3BsYXllZF9jYXJk",
-            "cxgCIAMoCzIJLmFwaS5DYXJkEhkKEXNlY29uZHNfcmVtYWluaW5nGAMgASgF",
-            "KnwKBk9wQ29kZRIOCgpPUF9VTktOT1dOEAASEgoOT1BfTUFUQ0hfU1RBUlQQ",
-            "ARIQCgxPUF9QTEFZX0NBUkQQAhISCg5PUF9UVVJOX1VQREFURRADEgwKCE9Q",
-            "X0VSUk9SEAQSGgoWT1BfTUFUQ0hfU1RBUlRfUkVRVUVTVBAFQhRaBC4vcGKq",
-            "AgtUaWVuTGVuLkdlbmIGcHJvdG8z"));
+            "bmsYAiABKAUiUQoQTWF0Y2hTdGFydFBhY2tldBIXCgRoYW5kGAEgAygLMgku",
+            "YXBpLkNhcmQSEgoKcGxheWVyX2lkcxgCIAMoCRIQCghvd25lcl9pZBgDIAEo",
+            "CSInCg9QbGF5Q2FyZFJlcXVlc3QSFAoMY2FyZF9pbmRpY2VzGAEgAygFIm0K",
+            "EFR1cm5VcGRhdGVQYWNrZXQSGAoQYWN0aXZlX3BsYXllcl9pZBgBIAEoCRIk",
+            "ChFsYXN0X3BsYXllZF9jYXJkcxgCIAMoCzIJLmFwaS5DYXJkEhkKEXNlY29u",
+            "ZHNfcmVtYWluaW5nGAMgASgFKpEBCgZPcENvZGUSDgoKT1BfVU5LTk9XThAA",
+            "EhIKDk9QX01BVENIX1NUQVJUEAESEAoMT1BfUExBWV9DQVJEEAISEgoOT1Bf",
+            "VFVSTl9VUERBVEUQAxIMCghPUF9FUlJPUhAEEhoKFk9QX01BVENIX1NUQVJU",
+            "X1JFUVVFU1QQBRITCg9PUF9PV05FUl9VUERBVEUQBkIUWgQuL3BiqgILVGll",
+            "bkxlbi5HZW5iBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::TienLen.Gen.OpCode), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::TienLen.Gen.Card), global::TienLen.Gen.Card.Parser, new[]{ "Suit", "Rank" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::TienLen.Gen.MatchStartPacket), global::TienLen.Gen.MatchStartPacket.Parser, new[]{ "Hand", "PlayerIds" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::TienLen.Gen.MatchStartPacket), global::TienLen.Gen.MatchStartPacket.Parser, new[]{ "Hand", "PlayerIds", "OwnerId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::TienLen.Gen.PlayCardRequest), global::TienLen.Gen.PlayCardRequest.Parser, new[]{ "CardIndices" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::TienLen.Gen.TurnUpdatePacket), global::TienLen.Gen.TurnUpdatePacket.Parser, new[]{ "ActivePlayerId", "LastPlayedCards", "SecondsRemaining" }, null, null, null, null)
           }));
@@ -72,6 +73,10 @@ namespace TienLen.Gen {
     /// Client -> Server (Host initiates game start)
     /// </summary>
     [pbr::OriginalName("OP_MATCH_START_REQUEST")] OpMatchStartRequest = 5,
+    /// <summary>
+    /// Server -> Client (Notify new owner)
+    /// </summary>
+    [pbr::OriginalName("OP_OWNER_UPDATE")] OpOwnerUpdate = 6,
   }
 
   #endregion
@@ -358,6 +363,7 @@ namespace TienLen.Gen {
     public MatchStartPacket(MatchStartPacket other) : this() {
       hand_ = other.hand_.Clone();
       playerIds_ = other.playerIds_.Clone();
+      ownerId_ = other.ownerId_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -395,6 +401,21 @@ namespace TienLen.Gen {
       get { return playerIds_; }
     }
 
+    /// <summary>Field number for the "owner_id" field.</summary>
+    public const int OwnerIdFieldNumber = 3;
+    private string ownerId_ = "";
+    /// <summary>
+    /// The ID of the current match owner
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string OwnerId {
+      get { return ownerId_; }
+      set {
+        ownerId_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -412,6 +433,7 @@ namespace TienLen.Gen {
       }
       if(!hand_.Equals(other.hand_)) return false;
       if(!playerIds_.Equals(other.playerIds_)) return false;
+      if (OwnerId != other.OwnerId) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -421,6 +443,7 @@ namespace TienLen.Gen {
       int hash = 1;
       hash ^= hand_.GetHashCode();
       hash ^= playerIds_.GetHashCode();
+      if (OwnerId.Length != 0) hash ^= OwnerId.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -441,6 +464,10 @@ namespace TienLen.Gen {
     #else
       hand_.WriteTo(output, _repeated_hand_codec);
       playerIds_.WriteTo(output, _repeated_playerIds_codec);
+      if (OwnerId.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(OwnerId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -453,6 +480,10 @@ namespace TienLen.Gen {
     void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
       hand_.WriteTo(ref output, _repeated_hand_codec);
       playerIds_.WriteTo(ref output, _repeated_playerIds_codec);
+      if (OwnerId.Length != 0) {
+        output.WriteRawTag(26);
+        output.WriteString(OwnerId);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -465,6 +496,9 @@ namespace TienLen.Gen {
       int size = 0;
       size += hand_.CalculateSize(_repeated_hand_codec);
       size += playerIds_.CalculateSize(_repeated_playerIds_codec);
+      if (OwnerId.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(OwnerId);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -479,6 +513,9 @@ namespace TienLen.Gen {
       }
       hand_.Add(other.hand_);
       playerIds_.Add(other.playerIds_);
+      if (other.OwnerId.Length != 0) {
+        OwnerId = other.OwnerId;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -506,6 +543,10 @@ namespace TienLen.Gen {
             playerIds_.AddEntriesFrom(input, _repeated_playerIds_codec);
             break;
           }
+          case 26: {
+            OwnerId = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -531,6 +572,10 @@ namespace TienLen.Gen {
           }
           case 18: {
             playerIds_.AddEntriesFrom(ref input, _repeated_playerIds_codec);
+            break;
+          }
+          case 26: {
+            OwnerId = input.ReadString();
             break;
           }
         }

@@ -42,10 +42,7 @@ namespace TienLen.Unity.Infrastructure.Services
                 _session.CurrentRoom = currentAuthoritativeMatch;
                 _session.ConnectedPlayers = currentAuthoritativeMatch.Presences.ToList();
                 
-                // Determine host: If I'm the only one in the match, I'm the host.
-                _session.IsHost = !currentAuthoritativeMatch.Presences.Any(); 
-                
-                FastLog.Info($"[LobbyService] Successfully connected to authoritative match: {currentAuthoritativeMatch.Id}. Am I Host? {_session.IsHost}");
+                FastLog.Info($"[LobbyService] Successfully connected to authoritative match: {currentAuthoritativeMatch.Id}.");
             }
             catch (Exception ex)
             {

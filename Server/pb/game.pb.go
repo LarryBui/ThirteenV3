@@ -31,6 +31,7 @@ const (
 	OpCode_OP_TURN_UPDATE         OpCode = 3 // Server -> Client (Next player turn)
 	OpCode_OP_ERROR               OpCode = 4 // Server -> Client (Invalid move)
 	OpCode_OP_MATCH_START_REQUEST OpCode = 5 // Client -> Server (Host initiates game start)
+	OpCode_OP_OWNER_UPDATE        OpCode = 6 // Server -> Client (Notify new owner)
 )
 
 // Enum value maps for OpCode.
@@ -42,6 +43,7 @@ var (
 		3: "OP_TURN_UPDATE",
 		4: "OP_ERROR",
 		5: "OP_MATCH_START_REQUEST",
+		6: "OP_OWNER_UPDATE",
 	}
 	OpCode_value = map[string]int32{
 		"OP_UNKNOWN":             0,
@@ -50,6 +52,7 @@ var (
 		"OP_TURN_UPDATE":         3,
 		"OP_ERROR":               4,
 		"OP_MATCH_START_REQUEST": 5,
+		"OP_OWNER_UPDATE":        6,
 	}
 )
 
@@ -137,6 +140,7 @@ type MatchStartPacket struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hand          []*Card                `protobuf:"bytes,1,rep,name=hand,proto3" json:"hand,omitempty"`                            // Your cards
 	PlayerIds     []string               `protobuf:"bytes,2,rep,name=player_ids,json=playerIds,proto3" json:"player_ids,omitempty"` // Turn order
+	OwnerId       string                 `protobuf:"bytes,3,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`       // The ID of the current match owner
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -183,6 +187,13 @@ func (x *MatchStartPacket) GetPlayerIds() []string {
 		return x.PlayerIds
 	}
 	return nil
+}
+
+func (x *MatchStartPacket) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
 }
 
 type PlayCardRequest struct {
@@ -297,17 +308,18 @@ const file_game_proto_rawDesc = "" +
 	"game.proto\x12\x03api\".\n" +
 	"\x04Card\x12\x12\n" +
 	"\x04suit\x18\x01 \x01(\x05R\x04suit\x12\x12\n" +
-	"\x04rank\x18\x02 \x01(\x05R\x04rank\"P\n" +
+	"\x04rank\x18\x02 \x01(\x05R\x04rank\"k\n" +
 	"\x10MatchStartPacket\x12\x1d\n" +
 	"\x04hand\x18\x01 \x03(\v2\t.api.CardR\x04hand\x12\x1d\n" +
 	"\n" +
-	"player_ids\x18\x02 \x03(\tR\tplayerIds\"4\n" +
+	"player_ids\x18\x02 \x03(\tR\tplayerIds\x12\x19\n" +
+	"\bowner_id\x18\x03 \x01(\tR\aownerId\"4\n" +
 	"\x0fPlayCardRequest\x12!\n" +
 	"\fcard_indices\x18\x01 \x03(\x05R\vcardIndices\"\xa0\x01\n" +
 	"\x10TurnUpdatePacket\x12(\n" +
 	"\x10active_player_id\x18\x01 \x01(\tR\x0eactivePlayerId\x125\n" +
 	"\x11last_played_cards\x18\x02 \x03(\v2\t.api.CardR\x0flastPlayedCards\x12+\n" +
-	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*|\n" +
+	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*\x91\x01\n" +
 	"\x06OpCode\x12\x0e\n" +
 	"\n" +
 	"OP_UNKNOWN\x10\x00\x12\x12\n" +
@@ -315,7 +327,8 @@ const file_game_proto_rawDesc = "" +
 	"\fOP_PLAY_CARD\x10\x02\x12\x12\n" +
 	"\x0eOP_TURN_UPDATE\x10\x03\x12\f\n" +
 	"\bOP_ERROR\x10\x04\x12\x1a\n" +
-	"\x16OP_MATCH_START_REQUEST\x10\x05B\x14Z\x04./pb\xaa\x02\vTienLen.Genb\x06proto3"
+	"\x16OP_MATCH_START_REQUEST\x10\x05\x12\x13\n" +
+	"\x0fOP_OWNER_UPDATE\x10\x06B\x14Z\x04./pb\xaa\x02\vTienLen.Genb\x06proto3"
 
 var (
 	file_game_proto_rawDescOnce sync.Once

@@ -47,23 +47,41 @@ namespace TienLen.Unity.Infrastructure.Network
 
         public async Task ConnectAndJoinMatchAsync()
         {
+            FastLog.Info("[[[[[[ ConnectAndJoinMatchAsync CALLED ]]]]]]");
             try
             {
-                var deviceId = SystemInfo.deviceUniqueIdentifier;
-                _session = await _client.AuthenticateDeviceAsync(deviceId, create: true, username: "Player_" + UnityEngine.Random.Range(1000, 9999));
-                
-                FastLog.Info($"Authenticated as {_session.Username} ({_session.UserId})");
-
-                if (!_socket.IsConnected)
+                // Add timeout to prevent hanging indefinitely
+                using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(30)))
                 {
-                    _socket.ReceivedMatchState += OnReceivedMatchState;
-                    await _socket.ConnectAsync(_session);
-                    FastLog.Info("Socket Connected");
-                }
+                    var deviceId = SystemInfo.deviceUniqueIdentifier;
+                    _session = await _client.AuthenticateDeviceAsync(deviceId, create: true, username: "Player_" + UnityEngine.Random.Range(1000, 9999));
+                    
+                    FastLog.Info($"Authenticated as {_session.Username} ({_session.UserId})");
 
-                _currentMatch = await _socket.CreateMatchAsync("tienlen_match");
-                
-                FastLog.Info($"Joined Match: {_currentMatch.Id}");
+                    if (!_socket.IsConnected)
+                    {
+                        _socket.ReceivedMatchState += OnReceivedMatchState;
+                        await _socket.ConnectAsync(_session);
+                        FastLog.Info("Socket Connected");
+                    }
+
+                    FastLog.Info("[[[[[[ About to Quick Match RPC... ]]]]]]");
+                    // Use RPC to find or create a match authoritatively
+                    var rpcResult = await _client.RpcAsync(_session, "quick_match", "{}");
+                    var payload = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(rpcResult.Payload);
+                    var matchId = payload["match_id"];
+                    
+                    _currentMatch = await _socket.JoinMatchAsync(matchId);
+                    FastLog.Info($"[[[[[[ Joined Match via Quick Match RPC, Match ID: {_currentMatch.Id} ]]]]]]");
+                    
+                    FastLog.Info($"Joined Match: {_currentMatch.Id}");
+                }
+            }
+            catch (System.OperationCanceledException)
+            {
+                FastLog.Error("Network timeout: Connection took too long");
+                OnError?.Invoke("Connection timeout - server not responding");
+                throw;
             }
             catch (Exception ex)
             {
@@ -93,51 +111,85 @@ namespace TienLen.Unity.Infrastructure.Network
         {
             try
             {
+                if (state?.State == null || state.State.Length == 0)
+                {
+                    FastLog.Warn("Received empty match state");
+                    return;
+                }
+
                 switch ((OpCode)state.OpCode)
                 {
                     case OpCode.OpMatchStart:
-                        var startPacket = MatchStartPacket.Parser.ParseFrom(state.State);
-                        // Convert Protobuf Hand to Domain Hand
-                        var domainHand = new TienLen.Unity.Domain.Aggregates.Hand();
-                        foreach (var protoCard in startPacket.Hand)
+                        try
                         {
-                            domainHand.AddCard(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                            var startPacket = MatchStartPacket.Parser.ParseFrom(state.State);
+                            // Convert Protobuf Hand to Domain Hand
+                            var domainHand = new TienLen.Unity.Domain.Aggregates.Hand();
+                            foreach (var protoCard in startPacket.Hand)
+                            {
+                                domainHand.AddCard(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                            }
+                            MainThreadDispatcher.Enqueue(() => {
+                                _gameModel.SetPlayerHand(domainHand);
+                                _gameModel.SetMatchOwner(startPacket.OwnerId);
+                            });
                         }
-                        MainThreadDispatcher.Enqueue(() => _gameModel.SetPlayerHand(domainHand));
+                        catch (Exception ex)
+                        {
+                            FastLog.Error($"Failed to parse MatchStartPacket: {ex.Message}");
+                            MainThreadDispatcher.Enqueue(() => OnError?.Invoke($"Protocol error: {ex.Message}"));
+                        }
                         break;
 
                     case OpCode.OpTurnUpdate:
-                        var turnPacket = TurnUpdatePacket.Parser.ParseFrom(state.State);
-                        // Convert Protobuf Cards to Domain Cards
-                        var domainCards = new List<TienLen.Unity.Domain.ValueObjects.Card>();
-                        foreach (var protoCard in turnPacket.LastPlayedCards)
+                        try
                         {
-                            domainCards.Add(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                            var turnPacket = TurnUpdatePacket.Parser.ParseFrom(state.State);
+                            // Convert Protobuf Cards to Domain Cards
+                            var domainCards = new List<TienLen.Unity.Domain.ValueObjects.Card>();
+                            foreach (var protoCard in turnPacket.LastPlayedCards)
+                            {
+                                domainCards.Add(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                            }
+                            MainThreadDispatcher.Enqueue(() => {
+                                _gameModel.UpdateBoard(domainCards);
+                                _gameModel.SetActivePlayer(turnPacket.ActivePlayerId);
+                                _gameModel.SetSecondsRemaining(turnPacket.SecondsRemaining);
+                            });
                         }
-                        MainThreadDispatcher.Enqueue(() => {
-                            _gameModel.UpdateBoard(domainCards);
-                            _gameModel.SetActivePlayer(turnPacket.ActivePlayerId);
-                            _gameModel.SetSecondsRemaining(turnPacket.SecondsRemaining);
-                        });
+                        catch (Exception ex)
+                        {
+                            FastLog.Error($"Failed to parse TurnUpdatePacket: {ex.Message}");
+                            MainThreadDispatcher.Enqueue(() => OnError?.Invoke($"Protocol error: {ex.Message}"));
+                        }
                         break;
                     
                     case OpCode.OpError:
                         var errorMsg = System.Text.Encoding.UTF8.GetString(state.State);
                         MainThreadDispatcher.Enqueue(() => 
                         {
-                            if (OnError != null)
-                                OnError?.Invoke(errorMsg);
+                            OnError?.Invoke(errorMsg);
                         });
+                        break;
+
+                    case OpCode.OpOwnerUpdate:
+                        var ownerId = System.Text.Encoding.UTF8.GetString(state.State); // Assuming OwnerId is sent as raw string
+                        MainThreadDispatcher.Enqueue(() => {
+                            _gameModel.SetMatchOwner(ownerId);
+                        });
+                        break;
+
+                    default:
+                        FastLog.Warn($"Unknown OpCode: {state.OpCode}");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                FastLog.Error($"Error parsing match state: {ex.Message}");
+                FastLog.Error($"Fatal error in OnReceivedMatchState: {ex.Message}");
                 MainThreadDispatcher.Enqueue(() => 
                 {
-                    if (OnError != null)
-                        OnError?.Invoke($"Parse error: {ex.Message}");
+                    OnError?.Invoke($"Fatal protocol error: {ex.Message}");
                 });
             }
         }

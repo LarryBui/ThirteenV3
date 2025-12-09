@@ -15,17 +15,11 @@ namespace TienLen.Unity.Infrastructure
         /// Mutable list of other players currently in the room.
         /// </summary>
         public List<IUserPresence> ConnectedPlayers { get; set; } = new List<IUserPresence>();
-
-        /// <summary>
-        /// True if this client is the Room Owner (Host).
-        /// </summary>
-        public bool IsHost { get; set; }
         
         public void Leave()
         {
             CurrentRoom = null;
             ConnectedPlayers.Clear();
-            IsHost = false;
         }
     }
 }

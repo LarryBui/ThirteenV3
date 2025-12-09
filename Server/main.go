@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/yourusername/tienlen-server/internal/api"
 	"github.com/yourusername/tienlen-server/internal/match"
 )
 
@@ -14,7 +15,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	startTime := time.Now()
 	logger.Info("TienLen Game Server initializing...")
 
-	// Register Match Handlers here
+	// Register RPCs
+	if err := initializer.RegisterRpc("create_match", api.RpcCreateMatch); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("quick_match", api.RpcQuickMatch); err != nil {
+		return err
+	}
+
+	// Register Match Handlers
 	if err := initializer.RegisterMatch("tienlen_match", func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error) {
 		return &match.Match{}, nil
 	}); err != nil {
@@ -25,6 +34,6 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	return nil
 }
 
-// main is a dummy function to allow 'go build' to pass without flags. 
+// main is a dummy function to allow 'go build' to pass without flags.
 // Nakama plugins are built as shared objects, but having main() helps with tooling.
 func main() {}

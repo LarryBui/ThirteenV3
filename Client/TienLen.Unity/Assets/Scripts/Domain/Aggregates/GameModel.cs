@@ -13,6 +13,7 @@ namespace TienLen.Unity.Domain.Aggregates
         public event Action<string> OnActivePlayerChanged;
         public event Action<int> OnSecondsRemainingUpdated;
         public event Action<string> OnMatchIdUpdated;
+        public event Action<string> OnMatchOwnerChanged; // New event
 
         // Internal State
         private Hand _playerHand;
@@ -30,12 +31,16 @@ namespace TienLen.Unity.Domain.Aggregates
         private string _matchId;
         public string MatchId => _matchId;
 
+        private string _matchOwnerId; // New field
+        public string MatchOwnerId => _matchOwnerId; // New property
+
         public GameModel()
         {
             _playerHand = new Hand();
             _currentBoard = new List<Card>();
             _activePlayerId = string.Empty;
             _matchId = string.Empty;
+            _matchOwnerId = string.Empty; // Initialize new field
         }
 
         public void SetPlayerHand(Hand newHand)
@@ -77,6 +82,15 @@ namespace TienLen.Unity.Domain.Aggregates
             }
         }
 
+        public void SetMatchOwner(string ownerId) // New method
+        {
+            if (_matchOwnerId != ownerId)
+            {
+                _matchOwnerId = ownerId;
+                OnMatchOwnerChanged?.Invoke(_matchOwnerId);
+            }
+        }
+
         public void Reset()
         {
             _playerHand = new Hand();
@@ -84,6 +98,7 @@ namespace TienLen.Unity.Domain.Aggregates
             _activePlayerId = string.Empty;
             _matchId = string.Empty;
             _secondsRemaining = 0;
+            _matchOwnerId = string.Empty; // Reset new field
 
             // Invoke events to clear UI (null-safe invocations)
             if (OnHandUpdated != null)

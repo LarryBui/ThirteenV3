@@ -54,6 +54,7 @@ namespace TienLen.Unity.Presentation.Presenters
             _gameModel.OnBoardUpdated += OnGameModelBoardUpdated;
             _gameModel.OnActivePlayerChanged += OnGameModelActivePlayerChanged;
             _gameModel.OnMatchIdUpdated += OnGameModelMatchIdUpdated;
+            _gameModel.OnMatchOwnerChanged += OnGameModelMatchOwnerChanged; // Subscribe to new event
             
             // Unsubscribe from Network Events (NakamaGameNetwork now updates GameModel directly)
             // _network.OnMatchStart -= HandleMatchStart; // Removed
@@ -63,6 +64,7 @@ namespace TienLen.Unity.Presentation.Presenters
             
             // GameRoom Initialization Logic
             InitializeGameRoom();
+            UpdateStartGameButtonVisibility(); // Initial call to set button state
         }
 
         private void InitializeGameRoom()
@@ -79,7 +81,6 @@ namespace TienLen.Unity.Presentation.Presenters
             if (StatusText) StatusText.text = $"Room: {_gameModel.MatchId}";
             _logger.LogInformation($"Game Room initialized. Room ID: {_gameModel.MatchId}");
 
-            _logger.LogInformation($"This client is {( _gameSession.IsHost ? "the HOST" : "a CLIENT")}.");
 
             // Setup Seat Manager
             if (GameSeatManager != null && _gameSession.CurrentRoom != null)
@@ -89,16 +90,12 @@ namespace TienLen.Unity.Presentation.Presenters
                 GameSeatManager.SetupPlayerSeats(localUserId, otherPlayers);
             }
 
-            // Host logic: Show Start Button if Host
-            if (StartGameButton != null)
-            {
-                StartGameButton.gameObject.SetActive(_gameSession.IsHost);
-            }
-
-            if (!_gameSession.IsHost)
-            {
-                _logger.LogInformation("Waiting for host to start the game...");
-            }
+            // The button visibility is now handled by UpdateStartGameButtonVisibility
+            // which subscribes to GameModel.OnMatchOwnerChanged.
+            // if (!_gameSession.IsHost) // This check is no longer needed here
+            // {
+            //     _logger.LogInformation("Waiting for host to start the game...");
+            // }
         }
 
         // GameModel Event Handlers
@@ -149,13 +146,34 @@ namespace TienLen.Unity.Presentation.Presenters
             if (StatusText) StatusText.text = $"Room: {matchId}";
         }
 
+        private void OnGameModelMatchOwnerChanged(string newOwnerId)
+        {
+            _logger.LogInformation($"GameModel Match Owner Changed: {newOwnerId}");
+            UpdateStartGameButtonVisibility();
+        }
+
+        private void UpdateStartGameButtonVisibility()
+        {
+            if (StartGameButton == null) return;
+
+            string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
+            bool isLocalPlayerOwner = !string.IsNullOrEmpty(localUserId) && localUserId == _gameModel.MatchOwnerId;
+            
+            StartGameButton.gameObject.SetActive(isLocalPlayerOwner);
+
+            if (!isLocalPlayerOwner)
+            {
+                _logger.LogInformation("Waiting for owner to start the game...");
+            }
+        }
+
         private async void OnStartGameClicked() 
         {
             _logger.LogInformation("Start Game clicked. Sending request to server...");
             try
             {
                 await _network.SendStartMatchAsync();
-                if (StartGameButton) StartGameButton.gameObject.SetActive(false);
+                // Button will be hidden by OnGameModelMatchOwnerChanged event
             }
             catch (System.Exception ex)
             {
@@ -194,6 +212,7 @@ namespace TienLen.Unity.Presentation.Presenters
                 _gameModel.OnBoardUpdated -= OnGameModelBoardUpdated;
                 _gameModel.OnActivePlayerChanged -= OnGameModelActivePlayerChanged;
                 _gameModel.OnMatchIdUpdated -= OnGameModelMatchIdUpdated;
+                _gameModel.OnMatchOwnerChanged -= OnGameModelMatchOwnerChanged; // Unsubscribe from new event
             }
 
             if (_network != null)
