@@ -3,6 +3,8 @@ package match
 import (
 	"context"
 	"database/sql"
+	"math/rand"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/yourusername/tienlen-server/internal/logic"
@@ -139,7 +141,11 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	s.IsPlaying = true
 	logger.Info("Starting Match with %d players", len(s.Presences))
 
-	deck := s.Deck // Use cached deck
+	// Shuffle the deck before dealing
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(s.Deck), func(i, j int) { s.Deck[i], s.Deck[j] = s.Deck[j], s.Deck[i] })
+
+	deck := s.Deck // Use shuffled deck
 	if len(deck) == 0 {
 		logger.Error("Deck is empty!")
 		return
