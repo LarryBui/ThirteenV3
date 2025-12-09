@@ -13,14 +13,17 @@ import (
 )
 
 type MatchState struct {
-	Presences  map[string]runtime.Presence `json:"presences"`
-	Hands      map[string][]*pb.Card       `json:"hands"`
-	Board      []*pb.Card                  `json:"board"`
-	TurnOrder  []string                    `json:"turn_order"`
-	CurrentIdx int                         `json:"current_idx"`
-	IsPlaying  bool                        `json:"is_playing"`
-	OwnerID    string                      `json:"owner_id"` // New field
-	Deck       []*pb.Card                  `json:"-"`        // Cached deck (not serialized)
+	Presences      map[string]runtime.Presence `json:"presences"`
+	Hands          map[string][]*pb.Card       `json:"hands"`
+	Board          []*pb.Card                  `json:"board"`
+	TurnOrder      []string                    `json:"turn_order"`
+	CurrentIdx     int                         `json:"current_idx"`
+	IsPlaying      bool                        `json:"is_playing"`
+	OwnerID        string                      `json:"owner_id"`
+	Spectators     map[string]bool             `json:"spectators"`       // Players watching (no hand)
+	Deck           []*pb.Card                  `json:"-"`                // Cached deck (not serialized)
+	StartTime      int64                       `json:"start_time"`       // When game started (Unix timestamp)
+	LastUpdateTick int64                       `json:"last_update_tick"` // Track last tick for recovery
 }
 
 type Match struct{}
@@ -28,11 +31,14 @@ type Match struct{}
 func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
 	logger.Info("Match initialized")
 	state := &MatchState{
-		Presences: make(map[string]runtime.Presence),
-		Hands:     make(map[string][]*pb.Card),
-		IsPlaying: false,
-		OwnerID:   "",           // Initialize OwnerID
-		Deck:      createDeck(), // Pre-create deck once
+		Presences:      make(map[string]runtime.Presence),
+		Hands:          make(map[string][]*pb.Card),
+		Spectators:     make(map[string]bool),
+		IsPlaying:      false,
+		OwnerID:        "",
+		Deck:           createDeck(),
+		StartTime:      0,
+		LastUpdateTick: 0,
 	}
 	return state, 10, "TienLen"
 }
@@ -62,10 +68,19 @@ func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 		logger.Info("Player %s joined match. IsPlaying=%v, PlayersCount=%d", userID, s.IsPlaying, len(s.Presences))
 
-		// If game is in progress, send current match state to the new joiner for spectating
+		// If game is in progress, send current match state to the new joiner
 		if s.IsPlaying {
-			// Send current board state and hand of the new player (if any)
-			sendMatchState(s, dispatcher, logger, p)
+			// Check if player had a hand before (reconnect) or is a new spectator
+			if _, hasHand := s.Hands[userID]; hasHand {
+				// Returning player with their original hand
+				logger.Info("Player %s rejoining with existing hand", userID)
+				sendMatchState(s, dispatcher, logger, p)
+			} else {
+				// New spectator joining mid-game
+				s.Spectators[userID] = true
+				logger.Info("Player %s joining as spectator", userID)
+				sendMatchState(s, dispatcher, logger, p)
+			}
 		}
 	}
 	return s
@@ -75,29 +90,46 @@ func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 	s := state.(*MatchState)
 	ownerLeft := false
 	for _, p := range presences {
-		if p.GetUserId() == s.OwnerID {
+		userID := p.GetUserId()
+		if userID == s.OwnerID {
 			ownerLeft = true
 		}
-		delete(s.Presences, p.GetUserId())
+		delete(s.Presences, userID)
+		delete(s.Spectators, userID)
+
+		// Keep hands in case player reconnects
+		// s.Hands[userID] is preserved for potential rejoin
+		logger.Info("Player %s left match", userID)
 	}
 
 	if ownerLeft {
 		if len(s.Presences) > 0 {
-			// Pick a new owner randomly from remaining players
-			for userID := range s.Presences { // Iterating a map is random enough for this purpose
-				s.OwnerID = userID
-				logger.Info("Previous owner left. New owner is: %s", s.OwnerID)
-				break
+			// Pick a new owner from active players (preferring non-spectators)
+			for userID := range s.Presences {
+				if !s.Spectators[userID] {
+					s.OwnerID = userID
+					logger.Info("Previous owner left. New owner is: %s", s.OwnerID)
+					break
+				}
 			}
+			// If all remaining are spectators, pick any
+			if s.OwnerID == "" {
+				for userID := range s.Presences {
+					s.OwnerID = userID
+					logger.Info("Previous owner left. New owner (spectator) is: %s", s.OwnerID)
+					break
+				}
+			}
+			broadcastOwnerUpdate(s, dispatcher)
 		} else {
 			// No players left, clear owner
 			s.OwnerID = ""
 			logger.Info("All players left. OwnerID cleared.")
 		}
-		broadcastOwnerUpdate(s, dispatcher)
 	}
 
 	if len(s.Presences) == 0 {
+		logger.Info("Match destroyed - no players remaining")
 		return nil // Destroy match
 	}
 
@@ -114,9 +146,6 @@ func broadcastOwnerUpdate(s *MatchState, dispatcher runtime.MatchDispatcher) {
 // sendMatchState is defined below with full implementation
 
 func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
-
-	logger.Info("MatchLoop called")
-
 	s := state.(*MatchState)
 
 	// Check if context is cancelled (match should terminate)
@@ -127,13 +156,19 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	default:
 	}
 
-	if tick%10 == 0 {
-		logger.Info("MatchLoop: tick=%d, messages=%d, presences=%d", tick, len(messages), len(s.Presences))
+	// Log every 100 ticks (10 seconds at 10 ticks/sec)
+	if tick%100 == 0 {
+		logger.Info("MatchLoop: tick=%d, isPlaying=%v, players=%d, spectators=%d, boardCards=%d",
+			tick, s.IsPlaying, len(s.Presences), len(s.Spectators), len(s.Board))
 	}
 
+	// Track last update tick for recovery
+	s.LastUpdateTick = tick
+
+	// Process all incoming messages
 	for _, msg := range messages {
 		if len(messages) > 0 {
-			logger.Info("Processing message: opCode=%d", msg.GetOpCode())
+			logger.Info("Processing message: opCode=%d from user %s", msg.GetOpCode(), msg.GetUserId())
 		}
 		handleMessage(s, msg, dispatcher, logger)
 	}
@@ -152,8 +187,24 @@ func (m *Match) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.
 // --- Helpers ---
 
 func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
+	// Validate we can start the game
+	activePlayers := 0
+	for userID := range s.Presences {
+		if !s.Spectators[userID] {
+			activePlayers++
+		}
+	}
+
+	if activePlayers < 1 {
+		logger.Error("Cannot start match with no players (have %d)", activePlayers)
+		return
+	}
+
 	s.IsPlaying = true
-	logger.Info("Starting Match with %d players", len(s.Presences))
+	s.StartTime = time.Now().Unix()
+	s.CurrentIdx = 0
+
+	logger.Info("Starting Match with %d active players + %d spectators", activePlayers, len(s.Spectators))
 
 	// Shuffle the deck before dealing
 	rand.Seed(time.Now().UnixNano())
@@ -162,14 +213,18 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	deck := s.Deck // Use shuffled deck
 	if len(deck) == 0 {
 		logger.Error("Deck is empty!")
+		s.IsPlaying = false
 		return
 	}
 
-	i := 0
-	s.TurnOrder = make([]string, 0, len(s.Presences))
+	// Only include active players (non-spectators) in TurnOrder
+	s.TurnOrder = make([]string, 0, activePlayers)
 	for userID := range s.Presences {
-		s.TurnOrder = append(s.TurnOrder, userID)
+		if !s.Spectators[userID] {
+			s.TurnOrder = append(s.TurnOrder, userID)
+		}
 	}
+
 	// Shuffle the turn order
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(s.TurnOrder), func(i, j int) { s.TurnOrder[i], s.TurnOrder[j] = s.TurnOrder[j], s.TurnOrder[i] })
@@ -177,21 +232,27 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	s.Hands = make(map[string][]*pb.Card) // Clear previous hands
 	s.Board = []*pb.Card{}                // Clear board
 
-	i = 0
-	for _, userID := range s.TurnOrder { // Iterate over shuffled turn order
-		if i*13+13 > len(deck) {
-			break // Not enough cards for all players
-		}
-		hand := deck[i*13 : i*13+13]
+	// Deal exactly 13 cards to each active player
+	cardsPerPlayer := 13
+	totalCardsNeeded := len(s.TurnOrder) * cardsPerPlayer
+	if len(deck) < totalCardsNeeded {
+		logger.Warn("Not enough cards: %d cards available for %d players (need %d)", len(deck), len(s.TurnOrder), totalCardsNeeded)
+		return
+	}
+
+	for i, userID := range s.TurnOrder {
+		startIdx := i * cardsPerPlayer
+		endIdx := startIdx + cardsPerPlayer
+		hand := deck[startIdx:endIdx]
 		logic.SortCards(hand)
 		s.Hands[userID] = hand
-		i++
+		logger.Info("Dealt %d cards to player %s", len(hand), userID)
 
-		// Send initial hand to each player
+		// Send initial hand to each active player
 		packet := &pb.MatchStartPacket{
 			Hand:      hand,
 			PlayerIds: s.TurnOrder,
-			OwnerId:   s.OwnerID, // Include owner in start packet
+			OwnerId:   s.OwnerID,
 		}
 		data, err := proto.Marshal(packet)
 		if err != nil {
@@ -201,46 +262,95 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 		dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{s.Presences[userID]}, nil, true)
 	}
 
+	// Notify spectators that game has started
+	for userID := range s.Spectators {
+		if s.Spectators[userID] {
+			packet := &pb.MatchStartPacket{
+				Hand:      []*pb.Card{}, // Empty hand for spectators
+				PlayerIds: s.TurnOrder,
+				OwnerId:   s.OwnerID,
+			}
+			data, err := proto.Marshal(packet)
+			if err != nil {
+				logger.Error("Failed to marshal MatchStartPacket for spectator %s: %v", userID, err)
+				continue
+			}
+			dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{s.Presences[userID]}, nil, true)
+		}
+	}
+
 	s.CurrentIdx = 0
 	broadcastTurn(s, dispatcher)
 }
 
 func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
+	if msg == nil {
+		logger.Warn("Received nil message")
+		return
+	}
+
 	opCode := pb.OpCode(msg.GetOpCode())
 	senderID := msg.GetUserId()
 
-	logger.Info("handleMessage: opCode=%d, senderID=%s", opCode, senderID)
+	logger.Info("handleMessage: opCode=%d, senderID=%s, messageSize=%d bytes", opCode, senderID, len(msg.GetData()))
 
+	// Validate sender is in match
 	senderPresence, ok := s.Presences[senderID]
 	if !ok {
 		logger.Warn("Sender not in presences: %s", senderID)
 		return
 	}
 
+	// Prevent spectators from playing cards
+	if s.Spectators[senderID] && opCode == pb.OpCode_OP_PLAY_CARD {
+		logger.Warn("Spectator %s attempted to play cards", senderID)
+		sendError(dispatcher, senderPresence, "You are spectating")
+		return
+	}
+
 	switch opCode {
 	case pb.OpCode_OP_PLAY_CARD:
-		logger.Info("Handling OP_PLAY_CARD")
+		logger.Info("Handling OP_PLAY_CARD from %s", senderID)
 		req := &pb.PlayCardRequest{}
 		if err := proto.Unmarshal(msg.GetData(), req); err != nil {
 			logger.Error("Bad play request: %v", err)
+			sendError(dispatcher, senderPresence, "Invalid request format")
 			return
 		}
 
-		if len(s.TurnOrder) == 0 || s.TurnOrder[s.CurrentIdx] != senderID {
+		// Validate it's player's turn
+		if len(s.TurnOrder) == 0 {
+			logger.Error("TurnOrder is empty")
+			sendError(dispatcher, senderPresence, "Game state error")
+			return
+		}
+
+		if s.TurnOrder[s.CurrentIdx] != senderID {
+			logger.Warn("Player %s tried to play but it's %s's turn", senderID, s.TurnOrder[s.CurrentIdx])
 			sendError(dispatcher, senderPresence, "Not your turn")
 			return
 		}
 
 		playerHand := s.Hands[senderID]
-		cardsToPlay := []*pb.Card{}
+		if playerHand == nil || len(playerHand) == 0 {
+			sendError(dispatcher, senderPresence, "You have no cards")
+			return
+		}
 
-		// Validate card indices before accessing
+		// Validate and extract cards to play
+		cardsToPlay := []*pb.Card{}
 		for _, idx := range req.CardIndices {
 			if idx < 0 || int(idx) >= len(playerHand) {
+				logger.Warn("Invalid card index: %d (hand size: %d)", idx, len(playerHand))
 				sendError(dispatcher, senderPresence, "Invalid card index")
 				return
 			}
-			cardsToPlay = append(cardsToPlay, playerHand[idx])
+			cardsToPlay = append(cardsToPlay, playerHand[int(idx)])
+		}
+
+		if len(cardsToPlay) == 0 {
+			sendError(dispatcher, senderPresence, "No cards selected")
+			return
 		}
 
 		if !logic.IsValidSet(cardsToPlay) {
@@ -286,8 +396,11 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		if len(newHand) == 0 {
 			// Player has no cards left, they win!
 			s.IsPlaying = false
-			broadcastGameOver(s, dispatcher, senderID, logger) // Broadcast winner
-			logger.Info("Player %s won the game!", senderID)
+			logger.Info("Player %s won the game! Remaining players: %d", senderID, len(s.Presences))
+
+			// Broadcast game over with winner
+			broadcastGameOver(s, dispatcher, senderID, logger)
+			logger.Info("Game over broadcast sent")
 		} else {
 			s.CurrentIdx = (s.CurrentIdx + 1) % len(s.TurnOrder)
 			broadcastTurn(s, dispatcher)
