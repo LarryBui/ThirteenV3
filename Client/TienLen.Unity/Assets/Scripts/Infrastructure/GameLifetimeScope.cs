@@ -49,6 +49,7 @@ namespace TienLen.Unity.Infrastructure
             builder.Register<NakamaAuthService>(Lifetime.Singleton);
             builder.Register<NakamaSocketService>(Lifetime.Singleton);
             builder.Register<ISceneService, SceneService>(Lifetime.Singleton);
+            builder.Register<IMatchMessageHandler, NakamaMatchMessageHandler>(Lifetime.Singleton);
 
             // Network Client Adaptor
             builder.Register<IGameNetwork, NakamaGameNetwork>(Lifetime.Singleton);

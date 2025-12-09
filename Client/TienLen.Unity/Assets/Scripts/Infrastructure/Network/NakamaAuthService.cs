@@ -24,5 +24,14 @@ namespace TienLen.Unity.Infrastructure.Network
             Debug.Log($"[NakamaAuth] Authenticated: {Session.UserId}");
             return Session;
         }
+
+        public async UniTask<ISession> AuthenticateCustomUniqueAsync()
+        {
+            var customId = System.Guid.NewGuid().ToString();
+            var username = $"Tester_{UnityEngine.Random.Range(1000, 9999)}";
+
+            Session = await _client.AuthenticateCustomAsync(customId, username, create: true);
+            return Session;
+        }
     }
 }

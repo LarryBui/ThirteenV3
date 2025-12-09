@@ -28,21 +28,17 @@ namespace TienLen.Unity.Infrastructure
         {
             try
             {
-                Debug.Log("[Bootstrap] Starting...");
-
                 // 1. Load Master Shell (Camera, Loading Screen)
                 await _sceneService.LoadMasterShellAsync();
 
-                // 2. Authenticate
-                var session = await _authService.AuthenticateDeviceAsync();
+                // 2. Authenticate with a unique custom user per run (test-friendly)
+                var session = await _authService.AuthenticateCustomUniqueAsync();
 
                 // 3. Connect Socket
                 await _socketService.ConnectAsync(session);
 
                 // 4. Load Lobby Feature
                 await _sceneService.LoadFeatureAsync(FeatureScene.Lobby);
-                
-                Debug.Log("[Bootstrap] Complete.");
             }
             catch (System.Exception ex)
             {

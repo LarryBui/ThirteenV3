@@ -41,7 +41,6 @@ namespace TienLen.Unity.Presentation.Presenters
             _network = network;
             _gameSession = gameSession;
             _gameModel = gameModel; // New
-            _logger.LogInformation("GamePresenter constructed.");
         }
 
         private void Start()
@@ -232,7 +231,7 @@ namespace TienLen.Unity.Presentation.Presenters
 
             if (!isLocalPlayerOwner)
             {
-                _logger.LogInformation("Waiting for owner to start the game...");
+                // Waiting for owner to start the game...
             }
         }
 
@@ -246,7 +245,7 @@ namespace TienLen.Unity.Presentation.Presenters
             if (!hasValidMove)
             {
                 // Player has no valid moves - highlight/enable Skip button
-                _logger.LogInformation("Player has no valid moves. Highlighting Skip button.");
+                // Player has no valid moves. Highlighting Skip button.
                 
                 // Set button to interactable state
                 SkipButton.interactable = true;
@@ -265,7 +264,7 @@ namespace TienLen.Unity.Presentation.Presenters
             else
             {
                 // Player has valid moves - reset Skip button to normal state
-                _logger.LogInformation("Player has valid moves available.");
+                // Player has valid moves available.
                 
                 // Reset button color to default
                 var colors = SkipButton.colors;
@@ -277,9 +276,7 @@ namespace TienLen.Unity.Presentation.Presenters
         }
 
         private async void OnStartGameClicked() 
-        {
-            _logger.LogInformation("Start Game clicked. Sending request to server...");
-            try
+        {try
             {
                 await _network.SendStartMatchAsync();
                 // Button will be hidden by OnGameModelMatchOwnerChanged event
@@ -303,9 +300,7 @@ namespace TienLen.Unity.Presentation.Presenters
 
             var selectedCards = PlayerHandView.GetSelectedCards();
             if (selectedCards.Count == 0)
-            {
-                _logger.LogWarning("No cards selected to play.");
-                if (StatusText) StatusText.text = "Select cards to play!";
+            {// No cards selected to play.\nif (StatusText) StatusText.text = "Select cards to play!";
                 return;
             }
 
@@ -354,10 +349,7 @@ namespace TienLen.Unity.Presentation.Presenters
         }
 
         private async void OnSkipClicked()
-        {
-            _logger.LogInformation("Skip Turn clicked. Sending pass request.");
-            
-            // Immediately hide action buttons and show "Passed" status locally
+        {// Immediately hide action buttons and show "Passed" status locally
             // if (PlayButton != null) PlayButton.gameObject.SetActive(false);
             // if (SkipButton != null) SkipButton.gameObject.SetActive(false);
             if (StatusText != null) StatusText.text = "You Passed!";
@@ -401,3 +393,4 @@ namespace TienLen.Unity.Presentation.Presenters
         }
     }
 }
+
