@@ -1,0 +1,36 @@
+syntax = "proto3";
+package api;
+
+option go_package = "./pb";
+option csharp_namespace = "TienLen.Gen";
+
+// 1. Operation Codes (What is happening?)
+enum OpCode {
+  OP_UNKNOWN = 0;
+  OP_MATCH_START = 1; // Server -> Client (Deal cards)
+  OP_PLAY_CARD = 2;   // Client -> Server (Player move)
+  OP_TURN_UPDATE = 3; // Server -> Client (Next player turn)
+  OP_ERROR = 4;       // Server -> Client (Invalid move)
+  OP_MATCH_START_REQUEST = 5; // Client -> Server (Host initiates game start)
+}
+
+// 2. Data Structures
+message Card {
+  int32 suit = 1; // 0=Spade, 1=Club, 2=Diamond, 3=Heart
+  int32 rank = 2; // 3=0... 2=12
+}
+
+message MatchStartPacket {
+  repeated Card hand = 1; // Your cards
+  repeated string player_ids = 2; // Turn order
+}
+
+message PlayCardRequest {
+  repeated int32 card_indices = 1; // Indices of cards in hand to play
+}
+
+message TurnUpdatePacket {
+  string active_player_id = 1;
+  repeated Card last_played_cards = 2; // Cards currently on table
+  int32 seconds_remaining = 3;
+}

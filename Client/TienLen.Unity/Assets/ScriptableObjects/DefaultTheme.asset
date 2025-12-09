@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8beae51373d460045b1b9c5fbab106a3, type: 3}
+  m_Name: DefaultTheme
+  m_EditorClassIdentifier: 
+  CardBack: {fileID: 21300000, guid: d4d2f046095793941ae8fec2df6f358f, type: 3}
+  CardFaceBackground: {fileID: 21300000, guid: 55791169526fb5d44bf4bc0229b5cf2c, type: 3}
+  RankFont: {fileID: 11400000, guid: 806cf783ffc2c264d8cd75075d4cd643, type: 2}
+  RedSuitColor: {r: 1, g: 0, b: 0, a: 1}
+  BlackSuitColor: {r: 0, g: 0, b: 0, a: 1}
+  _spadeIcon: {fileID: 1306208248, guid: 97c48bf9ac44f2b4c8b082142026f43f, type: 3}
+  _clubIcon: {fileID: -978975578, guid: 97c48bf9ac44f2b4c8b082142026f43f, type: 3}
+  _diamondIcon: {fileID: -1998725565, guid: 97c48bf9ac44f2b4c8b082142026f43f, type: 3}
+  _heartIcon: {fileID: -22572579, guid: 97c48bf9ac44f2b4c8b082142026f43f, type: 3}
+  _courtCards: []
