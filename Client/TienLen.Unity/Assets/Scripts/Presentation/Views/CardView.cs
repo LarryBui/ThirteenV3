@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 using System;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Presentation.Visuals; // New Namespace
 
 namespace TienLen.Unity.Presentation.Views

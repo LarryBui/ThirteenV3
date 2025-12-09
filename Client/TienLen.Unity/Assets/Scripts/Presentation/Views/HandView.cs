@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 
 using Cysharp.Threading.Tasks;
 
@@ -62,9 +62,7 @@ namespace TienLen.Unity.Presentation.Views
 
         private int GetCardCount(IEnumerable<Card> cards)
         {
-            int count = 0;
-            foreach (var c in cards) count++;
-            return count;
+            return System.Linq.Enumerable.Count(cards);
         }
         
         private void ClearHand()

@@ -24,3 +24,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	logger.Info("TienLen Game Server initialized in %dms", time.Since(startTime).Milliseconds())
 	return nil
 }
+
+// main is a dummy function to allow 'go build' to pass without flags. 
+// Nakama plugins are built as shared objects, but having main() helps with tooling.
+func main() {}

@@ -1,8 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
-using TienLen.Core.Domain.ValueObjects;
-using TienLen.Core.Domain.Enums;
+using TienLen.Unity.Domain.ValueObjects;
+using TienLen.Unity.Domain.Enums;
 
 namespace TienLen.Unity.Presentation.ScriptableObjects
 {

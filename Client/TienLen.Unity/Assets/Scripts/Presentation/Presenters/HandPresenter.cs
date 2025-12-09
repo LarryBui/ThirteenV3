@@ -1,7 +1,7 @@
 using UnityEngine;
 using Microsoft.Extensions.Logging;
 using VContainer;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Infrastructure.Logging;
 using TienLen.Unity.Infrastructure.Network; // Added
 using System.Collections.Generic;

@@ -1,5 +1,5 @@
 using UnityEngine;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Presentation.Views;
 using TienLen.Unity.Presentation.ScriptableObjects;
 using TienLen.Unity.Presentation.Visuals;

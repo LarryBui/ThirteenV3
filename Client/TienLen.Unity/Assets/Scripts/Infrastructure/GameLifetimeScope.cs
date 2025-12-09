@@ -6,6 +6,7 @@ using Serilog.Extensions.Logging; // For SerilogLoggerFactory
 using TienLen.Unity.Infrastructure.Logging;
 using TienLen.Unity.Infrastructure.Network; // Added
 using TienLen.Unity.Infrastructure.Services; // Added
+using TienLen.Unity.Domain.Aggregates; // Added for GameModel
 using Nakama; // Added
 using System; 
 
@@ -55,6 +56,7 @@ namespace TienLen.Unity.Infrastructure
             // Game Session & Lobby
             builder.Register<GameSession>(Lifetime.Singleton);
             builder.Register<LobbyService>(Lifetime.Singleton);
+            builder.Register<GameModel>(Lifetime.Singleton); // New
         }
 
         protected override void OnDestroy()

@@ -5,9 +5,9 @@ import (
 	"database/sql"
 
 	"github.com/heroiclabs/nakama-common/runtime"
-	"google.golang.org/protobuf/proto"
-	"github.com/yourusername/tienlen-server/pb"
 	"github.com/yourusername/tienlen-server/internal/logic"
+	"github.com/yourusername/tienlen-server/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 type MatchState struct {
@@ -87,7 +87,7 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	deck := createDeck()
 	// TODO: Shuffle the deck
 	// For now, deal from a sorted deck (predictable for testing)
-	
+
 	// 2. Deal Cards
 	i := 0
 	for userID, _ := range s.Presences {
@@ -99,7 +99,7 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 
 		// Send Hand to Player
 		packet := &pb.MatchStartPacket{
-			Hand: hand,
+			Hand:      hand,
 			PlayerIds: nil, // TODO: Send order (will need to map user IDs to usernames)
 		}
 		data, _ := proto.Marshal(packet)
@@ -128,7 +128,7 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 			logger.Error("Bad play request: %v", err)
 			return
 		}
-		
+
 		if s.TurnOrder[s.CurrentIdx] != senderID {
 			sendError(dispatcher, senderPresence, "Not your turn")
 			return
@@ -137,7 +137,7 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		// Validation Logic
 		playerHand := s.Hands[senderID]
 		cardsToPlay := []*pb.Card{}
-		
+
 		// Map indices to cards
 		// Note: Robust implementation needs checks for out of bounds
 		for _, idx := range req.CardIndices {
@@ -162,11 +162,11 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 
 		// Apply Move
 		s.Board = cardsToPlay
-		
+
 		// Remove cards from hand
 		newHand := []*pb.Card{}
 		// Basic filter: keep cards that were NOT played
-		// This logic relies on indices from request being accurate to the server's state. 
+		// This logic relies on indices from request being accurate to the server's state.
 		// Ideally we remove by Value/Suit match.
 		for _, c := range playerHand {
 			played := false
@@ -187,23 +187,26 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		broadcastTurn(s, dispatcher)
 
 	case pb.OpCode_OP_MATCH_START_REQUEST:
+		logger.Info("Match start request received from %s. IsPlaying=%v, Presences=%d", senderID, s.IsPlaying, len(s.Presences))
 		if s.IsPlaying {
+			logger.Warn("Start request rejected: Match already started")
 			sendError(dispatcher, senderPresence, "Match already started")
 			return
 		}
-		if len(s.Presences) < 2 { // Min 2 players to start
+		if len(s.Presences) < 1 {
+			logger.Warn("Start request rejected: Not enough players (%d). Need at least 1.", len(s.Presences))
 			sendError(dispatcher, senderPresence, "Not enough players to start")
 			return
 		}
-		// In a real game, you'd add host-only checks here. For simplicity, any connected player can start.
+		logger.Info("Starting match with %d players", len(s.Presences))
 		startMatch(s, dispatcher, logger)
 	}
 }
 
 func broadcastTurn(s *MatchState, dispatcher runtime.MatchDispatcher) {
 	packet := &pb.TurnUpdatePacket{
-		ActivePlayerId: s.TurnOrder[s.CurrentIdx],
-		LastPlayedCards: s.Board,
+		ActivePlayerId:   s.TurnOrder[s.CurrentIdx],
+		LastPlayedCards:  s.Board,
 		SecondsRemaining: 30,
 	}
 	data, _ := proto.Marshal(packet)
@@ -211,8 +214,9 @@ func broadcastTurn(s *MatchState, dispatcher runtime.MatchDispatcher) {
 }
 
 func sendError(dispatcher runtime.MatchDispatcher, p runtime.Presence, msg string) {
-	// Send OP_ERROR ...
-	// TODO: Define Error packet and send it to player 'p'
+	// Send OP_ERROR to specific player
+	data := []byte(msg)
+	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_ERROR), data, []runtime.Presence{p}, nil, true)
 }
 
 func createDeck() []*pb.Card {
@@ -225,5 +229,3 @@ func createDeck() []*pb.Card {
 	// TODO: Shuffle
 	return deck
 }
-
-

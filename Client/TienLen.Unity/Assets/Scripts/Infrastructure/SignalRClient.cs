@@ -3,7 +3,7 @@ using UnityEngine;
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 // using TienLen.Core.DTOs; 
 
 namespace TienLen.Unity.Infrastructure

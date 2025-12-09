@@ -1,6 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
-using TienLen.Core.Domain.Enums;
+using TienLen.Unity.Domain.Enums;
 using TMPro;
 
 namespace TienLen.Unity.Presentation.ScriptableObjects

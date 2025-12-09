@@ -56,11 +56,19 @@ namespace TienLen.Unity.Infrastructure.Services
 
         public async UniTask LeaveTableAsync()
         {
-            // Assuming _gameNetwork handles leaving authoritative matches.
-            // A proper leave would involve _gameNetwork.LeaveMatchAsync()
-            // For now, we just reset session.
-            _session.Leave();
-            await UniTask.CompletedTask; // Since IGameNetwork doesn't have LeaveMatchAsync yet.
+            try
+            {
+                // Assuming _gameNetwork handles leaving authoritative matches.
+                // A proper leave would involve _gameNetwork.LeaveMatchAsync()
+                // For now, we just reset session.
+                _session.Leave();
+                await UniTask.CompletedTask; // Since IGameNetwork doesn't have LeaveMatchAsync yet.
+            }
+            catch (System.Exception ex)
+            {
+                FastLog.Error($"[LobbyService] Error leaving table: {ex.Message}");
+                throw;
+            }
         }
     }
 }

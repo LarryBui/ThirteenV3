@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using Cysharp.Threading.Tasks;
 
 namespace TienLen.Unity.Presentation.Views
@@ -45,7 +45,7 @@ namespace TienLen.Unity.Presentation.Views
             }
         }
 
-        private void ClearBoard()
+        public void ClearBoard()
         {
             foreach (var cardView in _activeBoardCards)
             {

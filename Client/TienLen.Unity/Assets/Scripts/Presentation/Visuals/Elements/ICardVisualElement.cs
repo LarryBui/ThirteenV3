@@ -1,4 +1,4 @@
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Presentation.ScriptableObjects;
 
 namespace TienLen.Unity.Presentation.Visuals.Elements

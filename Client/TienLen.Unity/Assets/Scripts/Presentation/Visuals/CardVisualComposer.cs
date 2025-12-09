@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
-using TienLen.Core.Domain.ValueObjects;
+using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Presentation.ScriptableObjects;
 using TienLen.Unity.Presentation.Visuals.Elements;
 

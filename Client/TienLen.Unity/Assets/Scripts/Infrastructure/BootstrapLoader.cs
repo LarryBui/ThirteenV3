@@ -26,21 +26,28 @@ namespace TienLen.Unity.Infrastructure
         // Removed standard Unity Start() to avoid race conditions
         private async void StartApp()
         {
-            Debug.Log("[Bootstrap] Starting...");
+            try
+            {
+                Debug.Log("[Bootstrap] Starting...");
 
-            // 1. Load Master Shell (Camera, Loading Screen)
-            await _sceneService.LoadMasterShellAsync();
+                // 1. Load Master Shell (Camera, Loading Screen)
+                await _sceneService.LoadMasterShellAsync();
 
-            // 2. Authenticate
-            var session = await _authService.AuthenticateDeviceAsync();
+                // 2. Authenticate
+                var session = await _authService.AuthenticateDeviceAsync();
 
-            // 3. Connect Socket
-            await _socketService.ConnectAsync(session);
+                // 3. Connect Socket
+                await _socketService.ConnectAsync(session);
 
-            // 4. Load Lobby Feature
-            await _sceneService.LoadFeatureAsync(FeatureScene.Lobby);
-            
-            Debug.Log("[Bootstrap] Complete.");
+                // 4. Load Lobby Feature
+                await _sceneService.LoadFeatureAsync(FeatureScene.Lobby);
+                
+                Debug.Log("[Bootstrap] Complete.");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[Bootstrap] Failed to initialize: {ex.Message}\n{ex.StackTrace}");
+            }
         }
     }
 }

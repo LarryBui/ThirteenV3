@@ -24,6 +24,7 @@ namespace TienLen.Unity.Presentation
 
         // A way to map User IDs to these positions. This will be populated by GamePresenter.
         private Dictionary<string, Transform> _playerToHandMap = new Dictionary<string, Transform>();
+        private Dictionary<string, string> _playerNames = new Dictionary<string, string>();
 
         /// <summary>
         /// Populates the mapping of User IDs to their respective hand positions.
@@ -34,9 +35,11 @@ namespace TienLen.Unity.Presentation
         public void SetupPlayerSeats(string localUserId, List<IUserPresence> connectedPlayers)
         {
             _playerToHandMap.Clear();
+            _playerNames.Clear();
 
             // Always add local player first
             _playerToHandMap[localUserId] = LocalPlayerHandPosition;
+            _playerNames[localUserId] = "You";
 
             // Add opponents in a consistent order (e.g., based on sorted UserId or join order)
             // For now, a simple sequential assignment to fixed positions.
@@ -45,12 +48,23 @@ namespace TienLen.Unity.Presentation
             
             foreach (var presence in sortedOpponents)
             {
+                _playerNames[presence.UserId] = presence.Username;
+
                 if (opponentIndex == 0) _playerToHandMap[presence.UserId] = Opponent1HandPosition;
                 else if (opponentIndex == 1) _playerToHandMap[presence.UserId] = Opponent2HandPosition;
                 else if (opponentIndex == 2) _playerToHandMap[presence.UserId] = Opponent3HandPosition;
                 // Add more if more than 4 players, or use a list dynamically
                 opponentIndex++;
             }
+        }
+
+        public string GetPlayerName(string userId)
+        {
+            if (_playerNames.TryGetValue(userId, out var name))
+            {
+                return name;
+            }
+            return "Unknown";
         }
 
         /// <summary>

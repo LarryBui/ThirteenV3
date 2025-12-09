@@ -5,6 +5,7 @@ using Google.Protobuf;
 using Nakama;
 using TienLen.Gen; // Generated Protobuf namespace
 using TienLen.Unity.Infrastructure.Logging;
+using TienLen.Unity.Domain.Aggregates;
 using UnityEngine;
 using VContainer;
 
@@ -12,8 +13,6 @@ namespace TienLen.Unity.Infrastructure.Network
 {
     public interface IGameNetwork
     {
-        event Action<MatchStartPacket> OnMatchStart;
-        event Action<TurnUpdatePacket> OnTurnUpdate;
         event Action<string> OnError;
 
         IMatch CurrentNakamaMatch { get; } // Added
@@ -28,22 +27,22 @@ namespace TienLen.Unity.Infrastructure.Network
         private readonly IClient _client;
         private readonly ISocket _socket;
         private readonly NakamaAuthService _authService;
+        private readonly GameModel _gameModel; // New
         
         private IMatch _currentMatch;
         private ISession _session;
 
         public IMatch CurrentNakamaMatch => _currentMatch; // Implementation of the property
 
-        public event Action<MatchStartPacket> OnMatchStart;
-        public event Action<TurnUpdatePacket> OnTurnUpdate;
-        public Action<string> OnError;
+        public event Action<string> OnError;
 
         [Inject]
-        public NakamaGameNetwork(IClient client, ISocket socket, NakamaAuthService authService)
+        public NakamaGameNetwork(IClient client, ISocket socket, NakamaAuthService authService, GameModel gameModel)
         {
             _client = client;
             _socket = socket;
             _authService = authService;
+            _gameModel = gameModel; // New
         }
 
         public async Task ConnectAndJoinMatchAsync()
@@ -87,7 +86,7 @@ namespace TienLen.Unity.Infrastructure.Network
         public async Task SendStartMatchAsync()
         {
             if (_currentMatch == null) return;
-            await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpMatchStartRequest, null);
+            await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpMatchStartRequest, System.Array.Empty<byte>());
         }
 
         private void OnReceivedMatchState(IMatchState state)
@@ -98,29 +97,64 @@ namespace TienLen.Unity.Infrastructure.Network
                 {
                     case OpCode.OpMatchStart:
                         var startPacket = MatchStartPacket.Parser.ParseFrom(state.State);
-                        MainThreadDispatcher.Enqueue(() => OnMatchStart?.Invoke(startPacket));
+                        // Convert Protobuf Hand to Domain Hand
+                        var domainHand = new TienLen.Unity.Domain.Aggregates.Hand();
+                        foreach (var protoCard in startPacket.Hand)
+                        {
+                            domainHand.AddCard(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                        }
+                        MainThreadDispatcher.Enqueue(() => _gameModel.SetPlayerHand(domainHand));
                         break;
 
                     case OpCode.OpTurnUpdate:
                         var turnPacket = TurnUpdatePacket.Parser.ParseFrom(state.State);
-                        MainThreadDispatcher.Enqueue(() => OnTurnUpdate?.Invoke(turnPacket));
+                        // Convert Protobuf Cards to Domain Cards
+                        var domainCards = new List<TienLen.Unity.Domain.ValueObjects.Card>();
+                        foreach (var protoCard in turnPacket.LastPlayedCards)
+                        {
+                            domainCards.Add(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                        }
+                        MainThreadDispatcher.Enqueue(() => {
+                            _gameModel.UpdateBoard(domainCards);
+                            _gameModel.SetActivePlayer(turnPacket.ActivePlayerId);
+                            _gameModel.SetSecondsRemaining(turnPacket.SecondsRemaining);
+                        });
                         break;
                     
                     case OpCode.OpError:
                         var errorMsg = System.Text.Encoding.UTF8.GetString(state.State);
-                        MainThreadDispatcher.Enqueue(() => OnError?.Invoke(errorMsg));
+                        MainThreadDispatcher.Enqueue(() => 
+                        {
+                            if (OnError != null)
+                                OnError?.Invoke(errorMsg);
+                        });
                         break;
                 }
             }
             catch (Exception ex)
             {
                 FastLog.Error($"Error parsing match state: {ex.Message}");
+                MainThreadDispatcher.Enqueue(() => 
+                {
+                    if (OnError != null)
+                        OnError?.Invoke($"Parse error: {ex.Message}");
+                });
             }
         }
 
-        public void Dispose()
+        public async void Dispose()
         {
-            _socket?.CloseAsync();
+            try
+            {
+                if (_socket != null)
+                {
+                    await _socket.CloseAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                FastLog.Error($"Error closing socket: {ex.Message}");
+            }
         }
     }
 }
