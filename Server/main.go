@@ -22,6 +22,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("quick_match", api.RpcQuickMatch); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("create_test_user", api.RpcCreateTestUser); err != nil {
+		return err
+	}
 
 	// Register Match Handlers
 	if err := initializer.RegisterMatch("tienlen_match", func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error) {

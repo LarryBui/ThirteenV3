@@ -305,8 +305,7 @@ namespace TienLen.Unity.Presentation.Presenters
             _logger.LogInformation("Skip Turn clicked. Sending empty play request.");
             try
             {
-                // Sending empty list implies "Skip"
-                await _network.SendPlayCardAsync(new List<int>());
+                await _network.SendPassAsync();
             }
             catch (System.Exception ex)
             {

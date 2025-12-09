@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -35,7 +37,7 @@ func RpcQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	label := "TienLen"
 	minSize := 0
 	maxSize := 3 // We want matches with at most 3 players so there is room for one more
-	
+
 	matches, err := nk.MatchList(ctx, limit, authoritative, label, &minSize, &maxSize, "")
 	if err != nil {
 		logger.Error("Error listing matches: %v", err)
@@ -65,4 +67,36 @@ func RpcQuickMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	}
 
 	return string(bytes), nil
+}
+
+// RpcCreateTestUser creates a new throwaway user for testing with a unique ID, username, and display name.
+func RpcCreateTestUser(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	uid := uuid.NewString()
+	username := fmt.Sprintf("tester_%s", uid[:8])
+	display := fmt.Sprintf("Tester %s", uid[:6])
+
+	userID, sessionToken, _, err := nk.AuthenticateCustom(ctx, uid, username, true)
+	if err != nil {
+		logger.Error("failed to authenticate custom user: %v", err)
+		return "", err
+	}
+
+	if err := nk.AccountUpdateId(ctx, userID, username, nil, display, "", "", "", ""); err != nil {
+		logger.Error("failed to update display name for user %s: %v", userID, err)
+		return "", err
+	}
+
+	resp := map[string]string{
+		"user_id":       userID,
+		"session_token": sessionToken,
+		"custom_id":     uid,
+		"username":      username,
+		"display_name":  display,
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		logger.Error("failed to marshal test user response: %v", err)
+		return "", err
+	}
+	return string(data), nil
 }

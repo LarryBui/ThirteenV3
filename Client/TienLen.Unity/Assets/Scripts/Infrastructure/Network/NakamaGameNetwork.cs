@@ -20,6 +20,7 @@ namespace TienLen.Unity.Infrastructure.Network
 
         Task ConnectAndJoinMatchAsync();
         Task SendPlayCardAsync(List<int> cardIndices);
+        Task SendPassAsync();
         Task SendStartMatchAsync();
     }
 
@@ -54,10 +55,12 @@ namespace TienLen.Unity.Infrastructure.Network
                 // Add timeout to prevent hanging indefinitely
                 using (var cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds(30)))
                 {
-                    var deviceId = SystemInfo.deviceUniqueIdentifier;
-                    _session = await _client.AuthenticateDeviceAsync(deviceId, create: true, username: "Player_" + UnityEngine.Random.Range(1000, 9999));
+                    // Use a fresh custom ID per run to ensure a unique test account.
+                    var customId = System.Guid.NewGuid().ToString();
+                    var username = $"Tester_{UnityEngine.Random.Range(1000, 9999)}";
+                    _session = await _client.AuthenticateCustomAsync(customId, username, create: true);
                     
-                    FastLog.Info($"Authenticated as {_session.Username} ({_session.UserId})");
+                    FastLog.Info($"Authenticated new test user as {_session.Username} ({_session.UserId})");
 
                     if (!_socket.IsConnected)
                     {
@@ -100,6 +103,12 @@ namespace TienLen.Unity.Infrastructure.Network
             request.CardIndices.AddRange(cardIndices);
 
             await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpPlayCard, request.ToByteArray());
+        }
+
+        public async Task SendPassAsync()
+        {
+            if (_currentMatch == null) return;
+            await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpPass, Array.Empty<byte>());
         }
         
         public async Task SendStartMatchAsync()
