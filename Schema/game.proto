@@ -13,9 +13,11 @@ enum OpCode {
   OP_ERROR = 4;       // Server -> Client (Invalid move)
   OP_MATCH_START_REQUEST = 5; // Client -> Server (Host initiates game start)
   OP_OWNER_UPDATE = 6;      // Server -> Client (Notify new owner)
-  OP_GAME_OVER = 7;      // Server -> Client (Round finished)
+  OP_GAME_OVER = 7;      // Server -> Client (Match finished - someone eliminated)
   OP_MATCH_STATE = 8;    // Server -> Client (Sync state for late joiner)
   OP_HAND_UPDATE = 9;    // Server -> Client (Update player's hand)
+  OP_PASS = 10;           // Client -> Server (Player passes this round)
+  OP_ROUND_END = 11;      // Server -> Client (Round finished, table cleared)
 }
 
 // 2. Data Structures
@@ -36,6 +38,10 @@ message MatchStartPacket {
 
 message GameOverPacket {
   string winner_id = 1;
+}
+
+message RoundEndPacket {
+  string winner_id = 1;  // Player who wins this round
 }
 
 message MatchStatePacket {

@@ -24,6 +24,8 @@ type MatchState struct {
 	Deck           []*pb.Card                  `json:"-"`                // Cached deck (not serialized)
 	StartTime      int64                       `json:"start_time"`       // When game started (Unix timestamp)
 	LastUpdateTick int64                       `json:"last_update_tick"` // Track last tick for recovery
+	LastActor      string                      `json:"last_actor"`       // UserID who played current table cards
+	RoundSkippers  map[string]bool             `json:"round_skippers"`   // UserIDs locked out this round (passed)
 }
 
 type Match struct{}
@@ -34,11 +36,13 @@ func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Presences:      make(map[string]runtime.Presence),
 		Hands:          make(map[string][]*pb.Card),
 		Spectators:     make(map[string]bool),
+		RoundSkippers:  make(map[string]bool),
 		IsPlaying:      false,
 		OwnerID:        "",
 		Deck:           createDeck(),
 		StartTime:      0,
 		LastUpdateTick: 0,
+		LastActor:      "",
 	}
 	return state, 10, "TienLen"
 }
@@ -170,7 +174,7 @@ func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 		if len(messages) > 0 {
 			logger.Info("Processing message: opCode=%d from user %s", msg.GetOpCode(), msg.GetUserId())
 		}
-		handleMessage(s, msg, dispatcher, logger)
+		handleMessage(m, s, msg, dispatcher, logger)
 	}
 
 	return s
@@ -186,6 +190,93 @@ func (m *Match) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.
 
 // --- Helpers ---
 
+// playerIndex returns the index of a player within the current turn order, or -1 if not found.
+func (s *MatchState) playerIndex(userID string) int {
+	for i, uid := range s.TurnOrder {
+		if uid == userID {
+			return i
+		}
+	}
+	return -1
+}
+
+// resetRoundState clears the table and unlocks players for a new round.
+func (s *MatchState) resetRoundState() {
+	s.Board = nil
+	s.RoundSkippers = make(map[string]bool)
+	s.LastActor = ""
+}
+
+func (m *Match) RotateTurn(s *MatchState, logger runtime.Logger, dispatcher runtime.MatchDispatcher) {
+	if len(s.TurnOrder) == 0 {
+		logger.Error("TurnOrder is empty, cannot rotate")
+		return
+	}
+
+	count := len(s.TurnOrder)
+	originalIdx := s.CurrentIdx
+	if originalIdx < 0 || originalIdx >= count {
+		logger.Warn("CurrentIdx %d out of bounds, resetting to 0", originalIdx)
+		originalIdx = 0
+		s.CurrentIdx = 0
+	}
+
+	// Loop to find next valid player (not locked out)
+	for i := 1; i <= count; i++ {
+		nextIdx := (originalIdx + i) % count
+		nextPlayerID := s.TurnOrder[nextIdx]
+
+		// Win Condition: turn loops back to LastActor
+		if s.LastActor != "" && nextPlayerID == s.LastActor {
+			// Everyone else passed; LastActor wins this round
+			m.EndRound(s, nextPlayerID, dispatcher, logger)
+			return
+		}
+
+		// Skip locked-out players
+		if s.RoundSkippers[nextPlayerID] {
+			continue
+		}
+
+		// Valid player found
+		s.CurrentIdx = nextIdx
+		broadcastTurn(s, dispatcher)
+		return
+	}
+
+	// Fallback (should not reach if lastActor is set correctly)
+	logger.Warn("No valid players to rotate to")
+}
+
+func (m *Match) EndRound(s *MatchState, winnerID string, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
+	logger.Info("Round ended. Winner: %s", winnerID)
+
+	// 1. Clear round state
+	s.resetRoundState()
+
+	// 2. Set turn to winner (they play first next round)
+	winnerIdx := s.playerIndex(winnerID)
+	if winnerIdx >= 0 {
+		s.CurrentIdx = winnerIdx
+	} else {
+		logger.Warn("Winner %s not found in turn order", winnerID)
+	}
+
+	// 3. Broadcast round end event
+	packet := &pb.RoundEndPacket{
+		WinnerId: winnerID,
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		logger.Error("Failed to marshal RoundEndPacket: %v", err)
+		return
+	}
+	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_ROUND_END), data, nil, nil, true)
+
+	// 4. Broadcast turn update so next player knows to play
+	broadcastTurn(s, dispatcher)
+}
+
 func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
 	// Validate we can start the game
 	activePlayers := 0
@@ -200,6 +291,7 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 		return
 	}
 
+	s.resetRoundState()
 	s.IsPlaying = true
 	s.StartTime = time.Now().Unix()
 	s.CurrentIdx = 0
@@ -207,15 +299,12 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	logger.Info("Starting Match with %d active players + %d spectators", activePlayers, len(s.Spectators))
 
 	// Shuffle the deck before dealing
+	// Always create a fresh deck for a new match, then shuffle
+	s.Deck = createDeck()
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(s.Deck), func(i, j int) { s.Deck[i], s.Deck[j] = s.Deck[j], s.Deck[i] })
 
 	deck := s.Deck // Use shuffled deck
-	if len(deck) == 0 {
-		logger.Error("Deck is empty!")
-		s.IsPlaying = false
-		return
-	}
 
 	// Only include active players (non-spectators) in TurnOrder
 	s.TurnOrder = make([]string, 0, activePlayers)
@@ -230,7 +319,6 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	rand.Shuffle(len(s.TurnOrder), func(i, j int) { s.TurnOrder[i], s.TurnOrder[j] = s.TurnOrder[j], s.TurnOrder[i] })
 
 	s.Hands = make(map[string][]*pb.Card) // Clear previous hands
-	s.Board = []*pb.Card{}                // Clear board
 
 	// Deal exactly 13 cards to each active player
 	cardsPerPlayer := 13
@@ -239,6 +327,8 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 		logger.Warn("Not enough cards: %d cards available for %d players (need %d)", len(deck), len(s.TurnOrder), totalCardsNeeded)
 		return
 	}
+
+	//always deal 13 cards to 4 players
 
 	for i, userID := range s.TurnOrder {
 		startIdx := i * cardsPerPlayer
@@ -262,28 +352,11 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 		dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{s.Presences[userID]}, nil, true)
 	}
 
-	// Notify spectators that game has started
-	for userID := range s.Spectators {
-		if s.Spectators[userID] {
-			packet := &pb.MatchStartPacket{
-				Hand:      []*pb.Card{}, // Empty hand for spectators
-				PlayerIds: s.TurnOrder,
-				OwnerId:   s.OwnerID,
-			}
-			data, err := proto.Marshal(packet)
-			if err != nil {
-				logger.Error("Failed to marshal MatchStartPacket for spectator %s: %v", userID, err)
-				continue
-			}
-			dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{s.Presences[userID]}, nil, true)
-		}
-	}
-
 	s.CurrentIdx = 0
 	broadcastTurn(s, dispatcher)
 }
 
-func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
+func handleMessage(m *Match, s *MatchState, msg runtime.MatchData, dispatcher runtime.MatchDispatcher, logger runtime.Logger) {
 	if msg == nil {
 		logger.Warn("Received nil message")
 		return
@@ -332,7 +405,7 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		}
 
 		playerHand := s.Hands[senderID]
-		if playerHand == nil || len(playerHand) == 0 {
+		if len(playerHand) == 0 {
 			sendError(dispatcher, senderPresence, "You have no cards")
 			return
 		}
@@ -366,6 +439,8 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		}
 
 		s.Board = cardsToPlay
+		s.LastActor = senderID                  // Mark this player as table owner
+		s.RoundSkippers = make(map[string]bool) // Reset lockouts; new cards on table
 
 		newHand := []*pb.Card{}
 		for _, c := range playerHand {
@@ -394,7 +469,7 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		}
 
 		if len(newHand) == 0 {
-			// Player has no cards left, they win!
+			// Player has no cards left, they win the MATCH!
 			s.IsPlaying = false
 			logger.Info("Player %s won the game! Remaining players: %d", senderID, len(s.Presences))
 
@@ -402,8 +477,8 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 			broadcastGameOver(s, dispatcher, senderID, logger)
 			logger.Info("Game over broadcast sent")
 		} else {
-			s.CurrentIdx = (s.CurrentIdx + 1) % len(s.TurnOrder)
-			broadcastTurn(s, dispatcher)
+			// Rotate to next player for this round
+			m.RotateTurn(s, logger, dispatcher)
 		}
 
 	case pb.OpCode_OP_MATCH_START_REQUEST:
@@ -418,13 +493,39 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		}
 		startMatch(s, dispatcher, logger)
 
+	case pb.OpCode_OP_PASS:
+		logger.Info("Player %s passed", senderID)
+
+		// Validate it's their turn
+		if len(s.TurnOrder) == 0 {
+			sendError(dispatcher, senderPresence, "Game state error")
+			return
+		}
+		if s.TurnOrder[s.CurrentIdx] != senderID {
+			sendError(dispatcher, senderPresence, "Not your turn")
+			return
+		}
+
+		// Validate a LastActor exists (cards are on table)
+		if s.LastActor == "" {
+			sendError(dispatcher, senderPresence, "No cards on table")
+			return
+		}
+
+		// Lock player out for this round
+		s.RoundSkippers[senderID] = true
+		logger.Info("Player %s is now locked out this round", senderID)
+
+		// Rotate to next player
+		m.RotateTurn(s, logger, dispatcher)
+
 	default:
 		logger.Warn("Unknown opCode: %d", msg.GetOpCode())
 	}
 }
 
 func broadcastTurn(s *MatchState, dispatcher runtime.MatchDispatcher) {
-	if len(s.TurnOrder) == 0 {
+	if len(s.TurnOrder) == 0 || s.CurrentIdx < 0 || s.CurrentIdx >= len(s.TurnOrder) {
 		return
 	}
 	packet := &pb.TurnUpdatePacket{
@@ -452,11 +553,16 @@ func sendMatchState(s *MatchState, dispatcher runtime.MatchDispatcher, logger ru
 		playerIDs = append(playerIDs, userID)
 	}
 
+	activePlayerID := ""
+	if len(s.TurnOrder) > 0 && s.CurrentIdx >= 0 && s.CurrentIdx < len(s.TurnOrder) {
+		activePlayerID = s.TurnOrder[s.CurrentIdx]
+	}
+
 	packet := &pb.MatchStatePacket{
 		IsPlaying:      s.IsPlaying,
 		OwnerId:        s.OwnerID,
 		Board:          s.Board,
-		ActivePlayerId: s.TurnOrder[s.CurrentIdx],
+		ActivePlayerId: activePlayerID,
 		PlayerIds:      playerIDs,
 	}
 	data, err := proto.Marshal(packet)
