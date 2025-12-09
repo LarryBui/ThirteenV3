@@ -13,6 +13,9 @@ enum OpCode {
   OP_ERROR = 4;       // Server -> Client (Invalid move)
   OP_MATCH_START_REQUEST = 5; // Client -> Server (Host initiates game start)
   OP_OWNER_UPDATE = 6;      // Server -> Client (Notify new owner)
+  OP_GAME_OVER = 7;      // Server -> Client (Round finished)
+  OP_MATCH_STATE = 8;    // Server -> Client (Sync state for late joiner)
+  OP_HAND_UPDATE = 9;    // Server -> Client (Update player's hand)
 }
 
 // 2. Data Structures
@@ -21,10 +24,26 @@ message Card {
   int32 rank = 2; // 3=0... 2=12
 }
 
+message HandUpdatePacket {
+  repeated Card hand = 1;
+}
+
 message MatchStartPacket {
   repeated Card hand = 1; // Your cards
   repeated string player_ids = 2; // Turn order
   string owner_id = 3; // The ID of the current match owner
+}
+
+message GameOverPacket {
+  string winner_id = 1;
+}
+
+message MatchStatePacket {
+  bool is_playing = 1;
+  string owner_id = 2;
+  repeated Card board = 3;
+  string active_player_id = 4;
+  repeated string player_ids = 5; // Who is currently playing
 }
 
 message PlayCardRequest {

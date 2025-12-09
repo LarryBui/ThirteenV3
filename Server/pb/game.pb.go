@@ -32,6 +32,9 @@ const (
 	OpCode_OP_ERROR               OpCode = 4 // Server -> Client (Invalid move)
 	OpCode_OP_MATCH_START_REQUEST OpCode = 5 // Client -> Server (Host initiates game start)
 	OpCode_OP_OWNER_UPDATE        OpCode = 6 // Server -> Client (Notify new owner)
+	OpCode_OP_GAME_OVER           OpCode = 7 // Server -> Client (Round finished)
+	OpCode_OP_MATCH_STATE         OpCode = 8 // Server -> Client (Sync state for late joiner)
+	OpCode_OP_HAND_UPDATE         OpCode = 9 // Server -> Client (Update player's hand)
 )
 
 // Enum value maps for OpCode.
@@ -44,6 +47,9 @@ var (
 		4: "OP_ERROR",
 		5: "OP_MATCH_START_REQUEST",
 		6: "OP_OWNER_UPDATE",
+		7: "OP_GAME_OVER",
+		8: "OP_MATCH_STATE",
+		9: "OP_HAND_UPDATE",
 	}
 	OpCode_value = map[string]int32{
 		"OP_UNKNOWN":             0,
@@ -53,6 +59,9 @@ var (
 		"OP_ERROR":               4,
 		"OP_MATCH_START_REQUEST": 5,
 		"OP_OWNER_UPDATE":        6,
+		"OP_GAME_OVER":           7,
+		"OP_MATCH_STATE":         8,
+		"OP_HAND_UPDATE":         9,
 	}
 )
 
@@ -136,6 +145,50 @@ func (x *Card) GetRank() int32 {
 	return 0
 }
 
+type HandUpdatePacket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hand          []*Card                `protobuf:"bytes,1,rep,name=hand,proto3" json:"hand,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HandUpdatePacket) Reset() {
+	*x = HandUpdatePacket{}
+	mi := &file_game_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HandUpdatePacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HandUpdatePacket) ProtoMessage() {}
+
+func (x *HandUpdatePacket) ProtoReflect() protoreflect.Message {
+	mi := &file_game_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HandUpdatePacket.ProtoReflect.Descriptor instead.
+func (*HandUpdatePacket) Descriptor() ([]byte, []int) {
+	return file_game_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *HandUpdatePacket) GetHand() []*Card {
+	if x != nil {
+		return x.Hand
+	}
+	return nil
+}
+
 type MatchStartPacket struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hand          []*Card                `protobuf:"bytes,1,rep,name=hand,proto3" json:"hand,omitempty"`                            // Your cards
@@ -147,7 +200,7 @@ type MatchStartPacket struct {
 
 func (x *MatchStartPacket) Reset() {
 	*x = MatchStartPacket{}
-	mi := &file_game_proto_msgTypes[1]
+	mi := &file_game_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -159,7 +212,7 @@ func (x *MatchStartPacket) String() string {
 func (*MatchStartPacket) ProtoMessage() {}
 
 func (x *MatchStartPacket) ProtoReflect() protoreflect.Message {
-	mi := &file_game_proto_msgTypes[1]
+	mi := &file_game_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -172,7 +225,7 @@ func (x *MatchStartPacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchStartPacket.ProtoReflect.Descriptor instead.
 func (*MatchStartPacket) Descriptor() ([]byte, []int) {
-	return file_game_proto_rawDescGZIP(), []int{1}
+	return file_game_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MatchStartPacket) GetHand() []*Card {
@@ -196,6 +249,126 @@ func (x *MatchStartPacket) GetOwnerId() string {
 	return ""
 }
 
+type GameOverPacket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WinnerId      string                 `protobuf:"bytes,1,opt,name=winner_id,json=winnerId,proto3" json:"winner_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GameOverPacket) Reset() {
+	*x = GameOverPacket{}
+	mi := &file_game_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GameOverPacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GameOverPacket) ProtoMessage() {}
+
+func (x *GameOverPacket) ProtoReflect() protoreflect.Message {
+	mi := &file_game_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GameOverPacket.ProtoReflect.Descriptor instead.
+func (*GameOverPacket) Descriptor() ([]byte, []int) {
+	return file_game_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GameOverPacket) GetWinnerId() string {
+	if x != nil {
+		return x.WinnerId
+	}
+	return ""
+}
+
+type MatchStatePacket struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IsPlaying      bool                   `protobuf:"varint,1,opt,name=is_playing,json=isPlaying,proto3" json:"is_playing,omitempty"`
+	OwnerId        string                 `protobuf:"bytes,2,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	Board          []*Card                `protobuf:"bytes,3,rep,name=board,proto3" json:"board,omitempty"`
+	ActivePlayerId string                 `protobuf:"bytes,4,opt,name=active_player_id,json=activePlayerId,proto3" json:"active_player_id,omitempty"`
+	PlayerIds      []string               `protobuf:"bytes,5,rep,name=player_ids,json=playerIds,proto3" json:"player_ids,omitempty"` // Who is currently playing
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MatchStatePacket) Reset() {
+	*x = MatchStatePacket{}
+	mi := &file_game_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MatchStatePacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MatchStatePacket) ProtoMessage() {}
+
+func (x *MatchStatePacket) ProtoReflect() protoreflect.Message {
+	mi := &file_game_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MatchStatePacket.ProtoReflect.Descriptor instead.
+func (*MatchStatePacket) Descriptor() ([]byte, []int) {
+	return file_game_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *MatchStatePacket) GetIsPlaying() bool {
+	if x != nil {
+		return x.IsPlaying
+	}
+	return false
+}
+
+func (x *MatchStatePacket) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *MatchStatePacket) GetBoard() []*Card {
+	if x != nil {
+		return x.Board
+	}
+	return nil
+}
+
+func (x *MatchStatePacket) GetActivePlayerId() string {
+	if x != nil {
+		return x.ActivePlayerId
+	}
+	return ""
+}
+
+func (x *MatchStatePacket) GetPlayerIds() []string {
+	if x != nil {
+		return x.PlayerIds
+	}
+	return nil
+}
+
 type PlayCardRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CardIndices   []int32                `protobuf:"varint,1,rep,packed,name=card_indices,json=cardIndices,proto3" json:"card_indices,omitempty"` // Indices of cards in hand to play
@@ -205,7 +378,7 @@ type PlayCardRequest struct {
 
 func (x *PlayCardRequest) Reset() {
 	*x = PlayCardRequest{}
-	mi := &file_game_proto_msgTypes[2]
+	mi := &file_game_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +390,7 @@ func (x *PlayCardRequest) String() string {
 func (*PlayCardRequest) ProtoMessage() {}
 
 func (x *PlayCardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_game_proto_msgTypes[2]
+	mi := &file_game_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,7 +403,7 @@ func (x *PlayCardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayCardRequest.ProtoReflect.Descriptor instead.
 func (*PlayCardRequest) Descriptor() ([]byte, []int) {
-	return file_game_proto_rawDescGZIP(), []int{2}
+	return file_game_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PlayCardRequest) GetCardIndices() []int32 {
@@ -251,7 +424,7 @@ type TurnUpdatePacket struct {
 
 func (x *TurnUpdatePacket) Reset() {
 	*x = TurnUpdatePacket{}
-	mi := &file_game_proto_msgTypes[3]
+	mi := &file_game_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +436,7 @@ func (x *TurnUpdatePacket) String() string {
 func (*TurnUpdatePacket) ProtoMessage() {}
 
 func (x *TurnUpdatePacket) ProtoReflect() protoreflect.Message {
-	mi := &file_game_proto_msgTypes[3]
+	mi := &file_game_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +449,7 @@ func (x *TurnUpdatePacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TurnUpdatePacket.ProtoReflect.Descriptor instead.
 func (*TurnUpdatePacket) Descriptor() ([]byte, []int) {
-	return file_game_proto_rawDescGZIP(), []int{3}
+	return file_game_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *TurnUpdatePacket) GetActivePlayerId() string {
@@ -308,18 +481,30 @@ const file_game_proto_rawDesc = "" +
 	"game.proto\x12\x03api\".\n" +
 	"\x04Card\x12\x12\n" +
 	"\x04suit\x18\x01 \x01(\x05R\x04suit\x12\x12\n" +
-	"\x04rank\x18\x02 \x01(\x05R\x04rank\"k\n" +
+	"\x04rank\x18\x02 \x01(\x05R\x04rank\"1\n" +
+	"\x10HandUpdatePacket\x12\x1d\n" +
+	"\x04hand\x18\x01 \x03(\v2\t.api.CardR\x04hand\"k\n" +
 	"\x10MatchStartPacket\x12\x1d\n" +
 	"\x04hand\x18\x01 \x03(\v2\t.api.CardR\x04hand\x12\x1d\n" +
 	"\n" +
 	"player_ids\x18\x02 \x03(\tR\tplayerIds\x12\x19\n" +
-	"\bowner_id\x18\x03 \x01(\tR\aownerId\"4\n" +
+	"\bowner_id\x18\x03 \x01(\tR\aownerId\"-\n" +
+	"\x0eGameOverPacket\x12\x1b\n" +
+	"\twinner_id\x18\x01 \x01(\tR\bwinnerId\"\xb6\x01\n" +
+	"\x10MatchStatePacket\x12\x1d\n" +
+	"\n" +
+	"is_playing\x18\x01 \x01(\bR\tisPlaying\x12\x19\n" +
+	"\bowner_id\x18\x02 \x01(\tR\aownerId\x12\x1f\n" +
+	"\x05board\x18\x03 \x03(\v2\t.api.CardR\x05board\x12(\n" +
+	"\x10active_player_id\x18\x04 \x01(\tR\x0eactivePlayerId\x12\x1d\n" +
+	"\n" +
+	"player_ids\x18\x05 \x03(\tR\tplayerIds\"4\n" +
 	"\x0fPlayCardRequest\x12!\n" +
 	"\fcard_indices\x18\x01 \x03(\x05R\vcardIndices\"\xa0\x01\n" +
 	"\x10TurnUpdatePacket\x12(\n" +
 	"\x10active_player_id\x18\x01 \x01(\tR\x0eactivePlayerId\x125\n" +
 	"\x11last_played_cards\x18\x02 \x03(\v2\t.api.CardR\x0flastPlayedCards\x12+\n" +
-	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*\x91\x01\n" +
+	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*\xcb\x01\n" +
 	"\x06OpCode\x12\x0e\n" +
 	"\n" +
 	"OP_UNKNOWN\x10\x00\x12\x12\n" +
@@ -328,7 +513,10 @@ const file_game_proto_rawDesc = "" +
 	"\x0eOP_TURN_UPDATE\x10\x03\x12\f\n" +
 	"\bOP_ERROR\x10\x04\x12\x1a\n" +
 	"\x16OP_MATCH_START_REQUEST\x10\x05\x12\x13\n" +
-	"\x0fOP_OWNER_UPDATE\x10\x06B\x14Z\x04./pb\xaa\x02\vTienLen.Genb\x06proto3"
+	"\x0fOP_OWNER_UPDATE\x10\x06\x12\x10\n" +
+	"\fOP_GAME_OVER\x10\a\x12\x12\n" +
+	"\x0eOP_MATCH_STATE\x10\b\x12\x12\n" +
+	"\x0eOP_HAND_UPDATE\x10\tB\x14Z\x04./pb\xaa\x02\vTienLen.Genb\x06proto3"
 
 var (
 	file_game_proto_rawDescOnce sync.Once
@@ -343,22 +531,27 @@ func file_game_proto_rawDescGZIP() []byte {
 }
 
 var file_game_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_game_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_game_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_game_proto_goTypes = []any{
 	(OpCode)(0),              // 0: api.OpCode
 	(*Card)(nil),             // 1: api.Card
-	(*MatchStartPacket)(nil), // 2: api.MatchStartPacket
-	(*PlayCardRequest)(nil),  // 3: api.PlayCardRequest
-	(*TurnUpdatePacket)(nil), // 4: api.TurnUpdatePacket
+	(*HandUpdatePacket)(nil), // 2: api.HandUpdatePacket
+	(*MatchStartPacket)(nil), // 3: api.MatchStartPacket
+	(*GameOverPacket)(nil),   // 4: api.GameOverPacket
+	(*MatchStatePacket)(nil), // 5: api.MatchStatePacket
+	(*PlayCardRequest)(nil),  // 6: api.PlayCardRequest
+	(*TurnUpdatePacket)(nil), // 7: api.TurnUpdatePacket
 }
 var file_game_proto_depIdxs = []int32{
-	1, // 0: api.MatchStartPacket.hand:type_name -> api.Card
-	1, // 1: api.TurnUpdatePacket.last_played_cards:type_name -> api.Card
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 0: api.HandUpdatePacket.hand:type_name -> api.Card
+	1, // 1: api.MatchStartPacket.hand:type_name -> api.Card
+	1, // 2: api.MatchStatePacket.board:type_name -> api.Card
+	1, // 3: api.TurnUpdatePacket.last_played_cards:type_name -> api.Card
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_game_proto_init() }
@@ -372,7 +565,7 @@ func file_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_game_proto_rawDesc), len(file_game_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

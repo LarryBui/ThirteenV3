@@ -13,7 +13,10 @@ namespace TienLen.Unity.Domain.Aggregates
         public event Action<string> OnActivePlayerChanged;
         public event Action<int> OnSecondsRemainingUpdated;
         public event Action<string> OnMatchIdUpdated;
-        public event Action<string> OnMatchOwnerChanged; // New event
+        public event Action<string> OnMatchOwnerChanged; // Existing event
+        public event Action<bool> OnIsPlayingChanged; // New event
+        public event Action<string> OnGameOver; // New event (winnerId)
+        public event Action<IReadOnlyList<string>> OnPlayerIdsUpdated; // New event for player list
 
         // Internal State
         private Hand _playerHand;
@@ -31,8 +34,17 @@ namespace TienLen.Unity.Domain.Aggregates
         private string _matchId;
         public string MatchId => _matchId;
 
-        private string _matchOwnerId; // New field
-        public string MatchOwnerId => _matchOwnerId; // New property
+        private string _matchOwnerId; // Existing field
+        public string MatchOwnerId => _matchOwnerId; // Existing property
+
+        private bool _isPlaying; // New field
+        public bool IsPlaying => _isPlaying; // New property
+
+        private string _winnerId; // New field
+        public string WinnerId => _winnerId; // New property
+
+        private List<string> _playerIds; // New field
+        public IReadOnlyList<string> PlayerIds => _playerIds; // New property
 
         public GameModel()
         {
@@ -40,7 +52,10 @@ namespace TienLen.Unity.Domain.Aggregates
             _currentBoard = new List<Card>();
             _activePlayerId = string.Empty;
             _matchId = string.Empty;
-            _matchOwnerId = string.Empty; // Initialize new field
+            _matchOwnerId = string.Empty;
+            _isPlaying = false; // Initialize new field
+            _winnerId = string.Empty; // Initialize new field
+            _playerIds = new List<string>(); // Initialize new field
         }
 
         public void SetPlayerHand(Hand newHand)
@@ -82,12 +97,40 @@ namespace TienLen.Unity.Domain.Aggregates
             }
         }
 
-        public void SetMatchOwner(string ownerId) // New method
+        public void SetMatchOwner(string ownerId) // Existing method
         {
             if (_matchOwnerId != ownerId)
             {
                 _matchOwnerId = ownerId;
                 OnMatchOwnerChanged?.Invoke(_matchOwnerId);
+            }
+        }
+
+        public void SetIsPlaying(bool isPlaying) // New method
+        {
+            if (_isPlaying != isPlaying)
+            {
+                _isPlaying = isPlaying;
+                OnIsPlayingChanged?.Invoke(_isPlaying);
+            }
+        }
+
+        public void SetGameOver(string winnerId) // New method
+        {
+            SetIsPlaying(false); // Game is no longer playing
+            if (_winnerId != winnerId)
+            {
+                _winnerId = winnerId;
+            }
+            OnGameOver?.Invoke(_winnerId);
+        }
+
+        public void SetPlayerIds(IReadOnlyList<string> playerIds) // New method
+        {
+            if (!ReferenceEquals(_playerIds, playerIds)) // Simple reference check
+            {
+                _playerIds = new List<string>(playerIds); // Create new list to avoid direct modification
+                OnPlayerIdsUpdated?.Invoke(_playerIds);
             }
         }
 
@@ -98,7 +141,10 @@ namespace TienLen.Unity.Domain.Aggregates
             _activePlayerId = string.Empty;
             _matchId = string.Empty;
             _secondsRemaining = 0;
-            _matchOwnerId = string.Empty; // Reset new field
+            _matchOwnerId = string.Empty;
+            _isPlaying = false; // Reset new field
+            _winnerId = string.Empty; // Reset new field
+            _playerIds = new List<string>(); // Reset new field
 
             // Invoke events to clear UI (null-safe invocations)
             if (OnHandUpdated != null)
@@ -111,6 +157,12 @@ namespace TienLen.Unity.Domain.Aggregates
                 OnSecondsRemainingUpdated(_secondsRemaining);
             if (OnMatchIdUpdated != null)
                 OnMatchIdUpdated(_matchId);
+            if (OnIsPlayingChanged != null)
+                OnIsPlayingChanged(_isPlaying);
+            if (OnGameOver != null)
+                OnGameOver(_winnerId);
+            if (OnPlayerIdsUpdated != null)
+                OnPlayerIdsUpdated(_playerIds);
         }
     }
 }

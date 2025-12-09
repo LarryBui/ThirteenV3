@@ -20,7 +20,7 @@ type MatchState struct {
 	CurrentIdx int                         `json:"current_idx"`
 	IsPlaying  bool                        `json:"is_playing"`
 	OwnerID    string                      `json:"owner_id"` // New field
-	Deck       []*pb.Card                  `json:"-"` // Cached deck (not serialized)
+	Deck       []*pb.Card                  `json:"-"`        // Cached deck (not serialized)
 }
 
 type Match struct{}
@@ -31,7 +31,7 @@ func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Presences: make(map[string]runtime.Presence),
 		Hands:     make(map[string][]*pb.Card),
 		IsPlaying: false,
-		OwnerID:   "", // Initialize OwnerID
+		OwnerID:   "",           // Initialize OwnerID
 		Deck:      createDeck(), // Pre-create deck once
 	}
 	return state, 10, "TienLen"
@@ -39,9 +39,8 @@ func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 func (m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
 	s := state.(*MatchState)
-	if s.IsPlaying {
-		return s, false, "Match already in progress"
-	}
+	// Allow joining if match is not full (max 4 players)
+	// Players can join even if game is in progress (they will spectate)
 	if len(s.Presences) >= 4 {
 		return s, false, "Match is full"
 	}
@@ -52,12 +51,21 @@ func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 	s := state.(*MatchState)
 	for _, p := range presences {
 		s.Presences[p.GetUserId()] = p
+		userID := p.GetUserId()
+
 		// Assign owner if this is the first player to join
 		if s.OwnerID == "" {
-			s.OwnerID = p.GetUserId()
+			s.OwnerID = userID
 			logger.Info("Player %s is new match owner.", s.OwnerID)
-			// Broadcast the new owner
 			broadcastOwnerUpdate(s, dispatcher)
+		}
+
+		logger.Info("Player %s joined match. IsPlaying=%v, PlayersCount=%d", userID, s.IsPlaying, len(s.Presences))
+
+		// If game is in progress, send current match state to the new joiner for spectating
+		if s.IsPlaying {
+			// Send current board state and hand of the new player (if any)
+			sendMatchState(s, dispatcher, logger, p)
 		}
 	}
 	return s
@@ -89,6 +97,10 @@ func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 		broadcastOwnerUpdate(s, dispatcher)
 	}
 
+	if len(s.Presences) == 0 {
+		return nil // Destroy match
+	}
+
 	return s
 }
 
@@ -98,6 +110,8 @@ func broadcastOwnerUpdate(s *MatchState, dispatcher runtime.MatchDispatcher) {
 	// Sending to nil presences broadcasts to all connected presences in the match.
 	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_OWNER_UPDATE), data, nil, nil, true)
 }
+
+// sendMatchState is defined below with full implementation
 
 func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
 
@@ -152,25 +166,36 @@ func startMatch(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtim
 	}
 
 	i := 0
-	s.TurnOrder = []string{}
-
+	s.TurnOrder = make([]string, 0, len(s.Presences))
 	for userID := range s.Presences {
+		s.TurnOrder = append(s.TurnOrder, userID)
+	}
+	// Shuffle the turn order
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(s.TurnOrder), func(i, j int) { s.TurnOrder[i], s.TurnOrder[j] = s.TurnOrder[j], s.TurnOrder[i] })
+
+	s.Hands = make(map[string][]*pb.Card) // Clear previous hands
+	s.Board = []*pb.Card{}                // Clear board
+
+	i = 0
+	for _, userID := range s.TurnOrder { // Iterate over shuffled turn order
 		if i*13+13 > len(deck) {
-			break
+			break // Not enough cards for all players
 		}
 		hand := deck[i*13 : i*13+13]
 		logic.SortCards(hand)
 		s.Hands[userID] = hand
-		s.TurnOrder = append(s.TurnOrder, userID)
 		i++
 
+		// Send initial hand to each player
 		packet := &pb.MatchStartPacket{
 			Hand:      hand,
 			PlayerIds: s.TurnOrder,
+			OwnerId:   s.OwnerID, // Include owner in start packet
 		}
 		data, err := proto.Marshal(packet)
 		if err != nil {
-			logger.Error("Failed to marshal MatchStartPacket: %v", err)
+			logger.Error("Failed to marshal MatchStartPacket for user %s: %v", userID, err)
 			continue
 		}
 		dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{s.Presences[userID]}, nil, true)
@@ -247,8 +272,26 @@ func handleMessage(s *MatchState, msg runtime.MatchData, dispatcher runtime.Matc
 		}
 		s.Hands[senderID] = newHand
 
-		s.CurrentIdx = (s.CurrentIdx + 1) % len(s.TurnOrder)
-		broadcastTurn(s, dispatcher)
+		// Send updated hand to the player
+		handPacket := &pb.HandUpdatePacket{
+			Hand: newHand,
+		}
+		handData, err := proto.Marshal(handPacket)
+		if err != nil {
+			logger.Error("Failed to marshal HandUpdatePacket: %v", err)
+		} else {
+			dispatcher.BroadcastMessage(int64(pb.OpCode_OP_HAND_UPDATE), handData, []runtime.Presence{senderPresence}, nil, true)
+		}
+
+		if len(newHand) == 0 {
+			// Player has no cards left, they win!
+			s.IsPlaying = false
+			broadcastGameOver(s, dispatcher, senderID, logger) // Broadcast winner
+			logger.Info("Player %s won the game!", senderID)
+		} else {
+			s.CurrentIdx = (s.CurrentIdx + 1) % len(s.TurnOrder)
+			broadcastTurn(s, dispatcher)
+		}
 
 	case pb.OpCode_OP_MATCH_START_REQUEST:
 		logger.Info("Handling OP_MATCH_START_REQUEST from %s", senderID)
@@ -287,6 +330,41 @@ func broadcastTurn(s *MatchState, dispatcher runtime.MatchDispatcher) {
 func sendError(dispatcher runtime.MatchDispatcher, p runtime.Presence, msg string) {
 	data := []byte(msg)
 	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_ERROR), data, []runtime.Presence{p}, nil, true)
+}
+
+// sendMatchState sends the current match state to a specific player (e.g., a late joiner).
+func sendMatchState(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtime.Logger, receiver runtime.Presence) {
+	playerIDs := make([]string, 0, len(s.Presences))
+	for userID := range s.Presences {
+		playerIDs = append(playerIDs, userID)
+	}
+
+	packet := &pb.MatchStatePacket{
+		IsPlaying:      s.IsPlaying,
+		OwnerId:        s.OwnerID,
+		Board:          s.Board,
+		ActivePlayerId: s.TurnOrder[s.CurrentIdx],
+		PlayerIds:      playerIDs,
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		logger.Error("Failed to marshal MatchStatePacket: %v", err)
+		return
+	}
+	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_STATE), data, []runtime.Presence{receiver}, nil, true)
+}
+
+// broadcastGameOver sends an OP_GAME_OVER message to all players.
+func broadcastGameOver(s *MatchState, dispatcher runtime.MatchDispatcher, winnerID string, logger runtime.Logger) {
+	packet := &pb.GameOverPacket{
+		WinnerId: winnerID,
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		logger.Error("Failed to marshal GameOverPacket: %v", err)
+		return
+	}
+	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_GAME_OVER), data, nil, nil, true)
 }
 
 func createDeck() []*pb.Card {

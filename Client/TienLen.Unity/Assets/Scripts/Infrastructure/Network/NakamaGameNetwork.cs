@@ -7,6 +7,7 @@ using TienLen.Gen; // Generated Protobuf namespace
 using TienLen.Unity.Infrastructure.Logging;
 using TienLen.Unity.Domain.Aggregates;
 using UnityEngine;
+using System.Linq; // Added for LINQ extension methods
 using VContainer;
 
 namespace TienLen.Unity.Infrastructure.Network
@@ -177,6 +178,58 @@ namespace TienLen.Unity.Infrastructure.Network
                         MainThreadDispatcher.Enqueue(() => {
                             _gameModel.SetMatchOwner(ownerId);
                         });
+                        break;
+
+                    case OpCode.OpGameOver:
+                        try
+                        {
+                            var gameOverPacket = GameOverPacket.Parser.ParseFrom(state.State);
+                            MainThreadDispatcher.Enqueue(() => {
+                                _gameModel.SetGameOver(gameOverPacket.WinnerId); // Need to add SetGameOver to GameModel
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            FastLog.Error($"Failed to parse GameOverPacket: {ex.Message}");
+                            MainThreadDispatcher.Enqueue(() => OnError?.Invoke($"Protocol error: {ex.Message}"));
+                        }
+                        break;
+
+                    case OpCode.OpMatchState: // For late joiners / spectators
+                        try
+                        {
+                            var matchStatePacket = MatchStatePacket.Parser.ParseFrom(state.State);
+                            MainThreadDispatcher.Enqueue(() => {
+                                _gameModel.SetIsPlaying(matchStatePacket.IsPlaying); // Need to add SetIsPlaying to GameModel
+                                _gameModel.SetMatchOwner(matchStatePacket.OwnerId);
+                                _gameModel.UpdateBoard(matchStatePacket.Board.Select(c => new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)c.Rank, (TienLen.Unity.Domain.Enums.Suit)c.Suit)).ToList()); // Convert proto cards
+                                _gameModel.SetActivePlayer(matchStatePacket.ActivePlayerId);
+                                _gameModel.SetPlayerIds(matchStatePacket.PlayerIds.ToList()); // Need to add SetPlayerIds to GameModel
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            FastLog.Error($"Failed to parse MatchStatePacket: {ex.Message}");
+                            MainThreadDispatcher.Enqueue(() => OnError?.Invoke($"Protocol error: {ex.Message}"));
+                        }
+                        break;
+
+                    case OpCode.OpHandUpdate:
+                        try
+                        {
+                            var handPacket = HandUpdatePacket.Parser.ParseFrom(state.State);
+                            var domainHand = new TienLen.Unity.Domain.Aggregates.Hand();
+                            foreach (var protoCard in handPacket.Hand)
+                            {
+                                domainHand.AddCard(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
+                            }
+                            MainThreadDispatcher.Enqueue(() => _gameModel.SetPlayerHand(domainHand));
+                        }
+                        catch (Exception ex)
+                        {
+                            FastLog.Error($"Failed to parse HandUpdatePacket: {ex.Message}");
+                            MainThreadDispatcher.Enqueue(() => OnError?.Invoke($"Protocol error: {ex.Message}"));
+                        }
                         break;
 
                     default:
