@@ -140,6 +140,7 @@ namespace TienLen.Unity.Infrastructure.Network
                                 domainHand.AddCard(new TienLen.Unity.Domain.ValueObjects.Card((TienLen.Unity.Domain.Enums.Rank)protoCard.Rank, (TienLen.Unity.Domain.Enums.Suit)protoCard.Suit));
                             }
                             MainThreadDispatcher.Enqueue(() => {
+                                _gameModel.SetIsPlaying(true); // Match has started
                                 _gameModel.SetPlayerHand(domainHand);
                                 _gameModel.SetMatchOwner(startPacket.OwnerId);
                             });

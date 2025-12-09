@@ -163,13 +163,8 @@ namespace TienLen.Unity.Presentation.Presenters
             PlayButton.gameObject.SetActive(isPlaying);
             SkipButton.gameObject.SetActive(isPlaying);
 
-            if (!isPlaying) // Game over or not started
-            {
-                if (StartGameButton != null)
-                {
-                    UpdateStartGameButtonVisibility(); // Re-evaluate if owner should see Start Game button
-                }
-            }
+            // Update start game button visibility when playing state changes
+            UpdateStartGameButtonVisibility();
         }
 
         private void OnGameModelGameOver(string winnerId)
