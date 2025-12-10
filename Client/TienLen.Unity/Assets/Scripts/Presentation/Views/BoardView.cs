@@ -2,9 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TienLen.Unity.Domain.ValueObjects;
 using Cysharp.Threading.Tasks;
-#if DOTWEEN
 using DG.Tweening;
-#endif
 
 namespace TienLen.Unity.Presentation.Views
 {
@@ -54,15 +52,11 @@ namespace TienLen.Unity.Presentation.Views
 
         private async UniTask AnimateCardToBoard(CardView cardInstance)
         {
-#if DOTWEEN
             var tween = cardInstance.transform
                 .DOMove(PlayedCardsContainer.position, AnimationDuration)
                 .SetEase(Ease.OutQuad);
             await tween.AsyncWaitForCompletion();
-#else
-            await cardInstance.transform.MoveToAsync(PlayedCardsContainer.position, AnimationDuration, Easing.OutQuad);
-#endif
-            cardInstance.transform.SetParent(PlayedCardsContainer, worldPositionStays: true);
+            cardInstance.transform.SetParent(PlayedCardsContainer, worldPositionStays: false);
         }
 
         public void ClearBoard()
