@@ -29,6 +29,7 @@ namespace TienLen.Unity.Presentation.Presenters
         public BoardView GameBoardView; 
         public SeatManager GameSeatManager; 
 
+        private Dictionary<Card, Vector3> _pendingPlayedCardOrigins;
         private ILogger<GamePresenter> _logger;
         private IGameNetwork _network;
         private GameSession _gameSession;
@@ -112,19 +113,36 @@ namespace TienLen.Unity.Presentation.Presenters
             }
         }
 
-        private void OnGameModelBoardUpdated(List<Card> board)
+        private async void OnGameModelBoardUpdated(List<Card> board)
         {
             _logger.LogInformation($"GameModel Board Updated! Cards on board: {board.Count}");
             if (GameBoardView != null)
             {
-                GameBoardView.ClearBoard();
-                if (board.Any())
+                if (board == null || board.Count == 0)
+                {
+                    GameBoardView.ClearBoard();
+                }
+                else
                 {
                     _logger.LogInformation($"Cards on Board: {board.Count}");
-                    // TODO: Implement RenderPlayedCards on BoardView
-                    // Example: GameBoardView.RenderPlayedCards(board);
+
+                    var animateFromHand = ShouldAnimateFromHand(board);
+                    var fallbackStart = GameBoardView.PlayedCardsContainer != null
+                        ? GameBoardView.PlayedCardsContainer.position
+                        : Vector3.zero;
+
+                    if (animateFromHand && PlayerHandView != null)
+                    {
+                        fallbackStart = PlayerHandView.GetHandCenterWorldPosition();
+                    }
+
+                    await GameBoardView.AnimateAndAddPlayedCards(
+                        board,
+                        fallbackStart,
+                        animateFromHand ? _pendingPlayedCardOrigins : null);
                 }
             }
+            _pendingPlayedCardOrigins = null;
 
             // Check if it's the local player's turn and update Skip button visibility
             string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
@@ -132,6 +150,29 @@ namespace TienLen.Unity.Presentation.Presenters
             {
                 UpdateSkipButtonHighlight();
             }
+        }
+
+        private bool ShouldAnimateFromHand(List<Card> board)
+        {
+            if (_pendingPlayedCardOrigins == null || board == null)
+            {
+                return false;
+            }
+
+            if (board.Count != _pendingPlayedCardOrigins.Count)
+            {
+                return false;
+            }
+
+            foreach (var card in board)
+            {
+                if (!_pendingPlayedCardOrigins.ContainsKey(card))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void OnGameModelActivePlayerChanged(string activePlayerId)
@@ -336,6 +377,10 @@ namespace TienLen.Unity.Presentation.Presenters
             if (selectedIndices.Count > 0)
             {
                 _logger.LogInformation($"Playing {selectedIndices.Count} cards: indices [{string.Join(",", selectedIndices)}]");
+                if (PlayerHandView != null)
+                {
+                    _pendingPlayedCardOrigins = PlayerHandView.GetSelectedCardWorldPositions();
+                }
                 try
                 {
                     await _network.SendPlayCardAsync(selectedIndices);
@@ -344,6 +389,7 @@ namespace TienLen.Unity.Presentation.Presenters
                 {
                      _logger.LogError(ex, "Failed to send play card request.");
                      HandleError("Failed to play cards.");
+                     _pendingPlayedCardOrigins = null;
                 }
             }
         }

@@ -65,6 +65,30 @@ namespace TienLen.Unity.Presentation.Views
             return System.Linq.Enumerable.Count(cards);
         }
         
+        public Vector3 GetHandCenterWorldPosition()
+        {
+            if (CardContainer is RectTransform rectTransform)
+            {
+                var rectCenter = rectTransform.rect.center;
+                return rectTransform.TransformPoint(rectCenter);
+            }
+
+            return CardContainer != null ? CardContainer.position : Vector3.zero;
+        }
+
+        public Dictionary<Card, Vector3> GetSelectedCardWorldPositions()
+        {
+            var positions = new Dictionary<Card, Vector3>();
+            foreach (var cardView in _activeCards)
+            {
+                if (cardView != null && cardView.IsSelected)
+                {
+                    positions[cardView.CardData] = cardView.transform.position;
+                }
+            }
+            return positions;
+        }
+
         private void ClearHand()
         {
             foreach (var cardView in _activeCards)
