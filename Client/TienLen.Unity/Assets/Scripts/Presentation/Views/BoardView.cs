@@ -30,6 +30,7 @@ namespace TienLen.Unity.Presentation.Views
             }
 
             ClearBoard();
+            var animations = new List<UniTask>(cards.Count);
 
             foreach (var cardData in cards)
             {
@@ -43,25 +44,25 @@ namespace TienLen.Unity.Presentation.Views
                 cardInstance.Initialize(cardData);
                 
                 cardInstance.transform.position = startPosition;
-                
-                await AnimateCardToBoard(cardInstance.transform);
-                
-                cardInstance.transform.SetParent(PlayedCardsContainer, worldPositionStays: true);
-                
+
                 _activeBoardCards.Add(cardInstance);
-                // Optional: add a slight delay between cards if playing multiple
-                // await UniTask.Delay(50); 
+                animations.Add(AnimateCardToBoard(cardInstance));
             }
+
+            await UniTask.WhenAll(animations);
         }
 
-        private async UniTask AnimateCardToBoard(Transform cardTransform)
+        private async UniTask AnimateCardToBoard(CardView cardInstance)
         {
 #if DOTWEEN
-            var tween = cardTransform.DOMove(PlayedCardsContainer.position, AnimationDuration).SetEase(Ease.OutQuad);
+            var tween = cardInstance.transform
+                .DOMove(PlayedCardsContainer.position, AnimationDuration)
+                .SetEase(Ease.OutQuad);
             await tween.AsyncWaitForCompletion();
 #else
-            await cardTransform.MoveToAsync(PlayedCardsContainer.position, AnimationDuration, Easing.OutQuad);
+            await cardInstance.transform.MoveToAsync(PlayedCardsContainer.position, AnimationDuration, Easing.OutQuad);
 #endif
+            cardInstance.transform.SetParent(PlayedCardsContainer, worldPositionStays: true);
         }
 
         public void ClearBoard()

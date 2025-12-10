@@ -13,7 +13,6 @@ GameObject:
   - component: {fileID: 8960480603944777372}
   - component: {fileID: 3210209587103579023}
   - component: {fileID: 8140165491461120341}
-  - component: {fileID: 3203306186643155270}
   - component: {fileID: 156589798748164977}
   m_Layer: 5
   m_Name: CardTemplate
@@ -113,21 +112,6 @@ MonoBehaviour:
   _backgroundImage: {fileID: 8960480603944777372}
   _backImage: {fileID: 3236026897374148434}
   _theme: {fileID: 11400000, guid: bfcfbf041c6974e4fbab48558d533e39, type: 2}
---- !u!114 &3203306186643155270
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2367922911859494015}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0, g: 0, b: 0, a: 0.5}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &156589798748164977
 MonoBehaviour:
   m_ObjectHideFlags: 0
