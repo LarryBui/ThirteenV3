@@ -22,6 +22,7 @@ namespace TienLen.Unity.Presentation.Presenters
     {
         [Header("UI References")]
         public HandView PlayerHandView;
+        public AvatarView LocalPlayerAvatar; // New Avatar reference
         public Button PlayButton;
         public Button SkipButton;
         public Button StartGameButton; 
@@ -92,6 +93,13 @@ namespace TienLen.Unity.Presentation.Presenters
                 string localUserId = _gameSession.CurrentRoom.Self.UserId;
                 List<IUserPresence> otherPlayers = _gameSession.ConnectedPlayers;
                 GameSeatManager.SetupPlayerSeats(localUserId, otherPlayers);
+                
+                // Initialize Local Avatar
+                if (LocalPlayerAvatar != null)
+                {
+                    LocalPlayerAvatar.SetName(_gameSession.CurrentRoom.Self.Username);
+                    // LocalPlayerAvatar.SetAvatar(...); // To be implemented when avatar assets are available
+                }
             }
 
             // The button visibility is now handled by UpdateStartGameButtonVisibility
