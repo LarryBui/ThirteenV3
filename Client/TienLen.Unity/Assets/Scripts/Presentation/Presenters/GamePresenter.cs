@@ -291,11 +291,9 @@ namespace TienLen.Unity.Presentation.Presenters
         /// <param name="seats">Seat array where index maps to seat number and value is userId.</param>
         private void OnGameModelSeatsUpdated(IReadOnlyList<string> seats)
         {
-            _logger.LogInformation("Seats updated: {Seats}", seats == null ? "null" : seats);
             if (seats == null || seats.Count == 0) return;
 
             var localUserId = _gameSession?.CurrentRoom?.Self?.UserId;
-            Debug.Log("local user id: " + localUserId);
             if (string.IsNullOrEmpty(localUserId))
             {
                 _logger.LogWarning("Cannot render avatars: local user ID not available.");
@@ -311,7 +309,6 @@ namespace TienLen.Unity.Presentation.Presenters
                     break;
                 }
             }
-            _logger.LogInformation("Local seat index: {Index}", localSeatIndex);
 
             if (localSeatIndex < 0)
             {
@@ -340,13 +337,10 @@ namespace TienLen.Unity.Presentation.Presenters
 
         private void SetAvatarForSeat(AvatarView avatarView, IReadOnlyList<string> seats, int seatIndex, Dictionary<string, IUserPresence> presenceLookup, bool isLocal = false)
         {
-            _logger.LogInformation("SetAvatarForSeat: {@PresenceLookup}", presenceLookup);
-            _logger.LogInformation("Setting avatar for seat index {@Seats}", seats);
             if (avatarView == null) return;
             if (seats == null || seatIndex < 0 || seatIndex >= seats.Count) return;
 
             var userId = seats[seatIndex];
-            _logger.LogInformation("userId: {UserId}", userId);
             if (string.IsNullOrEmpty(userId))
             {
                 avatarView.gameObject.SetActive(false);
@@ -357,7 +351,6 @@ namespace TienLen.Unity.Presentation.Presenters
             
             if (presenceLookup.TryGetValue(userId, out var presence))
             {
-            _logger.LogInformation("user's Presence: {@Presence}", presence);
 
                 avatarView.SetName(presence.Username);
             }
