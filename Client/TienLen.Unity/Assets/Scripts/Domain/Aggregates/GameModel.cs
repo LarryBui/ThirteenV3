@@ -17,6 +17,7 @@ namespace TienLen.Unity.Domain.Aggregates
         public event Action<bool> OnIsPlayingChanged; // New event
         public event Action<string> OnGameOver; // New event (winnerId)
         public event Action<IReadOnlyList<string>> OnPlayerIdsUpdated; // New event for player list
+        public event Action<IReadOnlyList<string>> OnSeatsUpdated; // New event for seats (seat index => userId)
 
         // Internal State
         private Hand _playerHand;
@@ -45,6 +46,9 @@ namespace TienLen.Unity.Domain.Aggregates
 
         private List<string> _playerIds; // New field
         public IReadOnlyList<string> PlayerIds => _playerIds; // New property
+
+        private List<string> _seats = new List<string>(new string[4]); // seat index -> userId
+        public IReadOnlyList<string> Seats => _seats;
 
         public GameModel()
         {
@@ -145,6 +149,7 @@ namespace TienLen.Unity.Domain.Aggregates
             _isPlaying = false; // Reset new field
             _winnerId = string.Empty; // Reset new field
             _playerIds = new List<string>(); // Reset new field
+            _seats = new List<string>(new string[4]);
 
             // Invoke events to clear UI (null-safe invocations)
             if (OnHandUpdated != null)
@@ -163,6 +168,15 @@ namespace TienLen.Unity.Domain.Aggregates
                 OnGameOver(_winnerId);
             if (OnPlayerIdsUpdated != null)
                 OnPlayerIdsUpdated(_playerIds);
+            if (OnSeatsUpdated != null)
+                OnSeatsUpdated(_seats);
+        }
+
+        public void SetSeats(IReadOnlyList<string> seats)
+        {
+            if (seats == null) return;
+            _seats = new List<string>(seats);
+            OnSeatsUpdated?.Invoke(_seats);
         }
     }
 }

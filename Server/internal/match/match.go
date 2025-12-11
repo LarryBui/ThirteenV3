@@ -76,11 +76,9 @@ func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
 	s := state.(*MatchState)
 	ownerLeft := false
-	leftIDs := make([]string, 0, len(presences))
 
 	for _, p := range presences {
 		userID := p.GetUserId()
-		leftIDs = append(leftIDs, userID)
 		if userID == s.OwnerID {
 			ownerLeft = true
 		}
@@ -104,9 +102,7 @@ func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 		adapter.BroadcastOwnerUpdate(dispatcher, s.OwnerID)
 	}
 
-	if len(leftIDs) > 0 {
-		adapter.BroadcastPlayerLeft(dispatcher, leftIDs, m.orderedSeatedPlayers(s), s.OwnerID, s.Game)
-	}
+	adapter.BroadcastPlayerLeft(dispatcher, seatsAsSlice(s.Seats), s.OwnerID, s.Game)
 
 	return s
 }
@@ -232,7 +228,7 @@ func (m *Match) assignSeat(logger runtime.Logger, s *MatchState, dispatcher runt
 	}
 	s.Seats[slot] = userID
 	s.SeatByUser[userID] = slot
-	adapter.BroadcastPlayerJoined(dispatcher, userID, m.orderedSeatedPlayers(s), s.OwnerID, s.Game)
+	adapter.BroadcastPlayerJoined(dispatcher, seatsAsSlice(s.Seats), s.OwnerID, s.Game)
 }
 
 func (m *Match) freeSeat(s *MatchState, dispatcher runtime.MatchDispatcher, userID string) {
@@ -256,4 +252,10 @@ func (m *Match) orderedSeatedPlayers(s *MatchState) []string {
 		players = append(players, uid)
 	}
 	return players
+}
+
+func seatsAsSlice(seats [4]string) []string {
+	out := make([]string, len(seats))
+	copy(out, seats[:])
+	return out
 }

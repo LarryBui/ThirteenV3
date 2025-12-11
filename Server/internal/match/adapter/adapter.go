@@ -100,7 +100,7 @@ func sendTurnUpdate(dispatcher runtime.MatchDispatcher, ev tienlen.TurnChanged) 
 }
 
 // BroadcastSeatUpdate sends the current seat map to all players.
-func BroadcastPlayerJoined(dispatcher runtime.MatchDispatcher, joinedUserID string, playerOrder []string, ownerID string, game *tienlen.Game) {
+func BroadcastPlayerJoined(dispatcher runtime.MatchDispatcher, seats []string, ownerID string, game *tienlen.Game) {
 	snapshot := tienlen.Snapshot{}
 	if game != nil {
 		snapshot = game.Snapshot()
@@ -111,7 +111,7 @@ func BroadcastPlayerJoined(dispatcher runtime.MatchDispatcher, joinedUserID stri
 		OwnerId:        ownerID,
 		Board:          toPBCards(snapshot.Board),
 		ActivePlayerId: snapshot.ActivePlayerID,
-		PlayerIds:      playerOrder,
+		PlayerIds:      seats,
 	}
 	data, err := proto.Marshal(packet)
 	if err != nil {
@@ -121,7 +121,7 @@ func BroadcastPlayerJoined(dispatcher runtime.MatchDispatcher, joinedUserID stri
 }
 
 // BroadcastPlayerLeft updates everyone with the current state after one or more players leave.
-func BroadcastPlayerLeft(dispatcher runtime.MatchDispatcher, leftUserIDs []string, playerOrder []string, ownerID string, game *tienlen.Game) {
+func BroadcastPlayerLeft(dispatcher runtime.MatchDispatcher, seats []string, ownerID string, game *tienlen.Game) {
 	snapshot := tienlen.Snapshot{}
 	if game != nil {
 		snapshot = game.Snapshot()
@@ -132,7 +132,7 @@ func BroadcastPlayerLeft(dispatcher runtime.MatchDispatcher, leftUserIDs []strin
 		OwnerId:        ownerID,
 		Board:          toPBCards(snapshot.Board),
 		ActivePlayerId: snapshot.ActivePlayerID,
-		PlayerIds:      playerOrder,
+		PlayerIds:      seats,
 	}
 	data, err := proto.Marshal(packet)
 	if err != nil {

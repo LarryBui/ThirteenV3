@@ -130,6 +130,7 @@ namespace TienLen.Unity.Infrastructure.Network
             _gameModel.UpdateBoard(matchStatePacket.Board.Select(c => new DomainClasses.Card((Domain.Enums.Rank)c.Rank, (Domain.Enums.Suit)c.Suit)).ToList());
             _gameModel.SetActivePlayer(matchStatePacket.ActivePlayerId);
             _gameModel.SetPlayerIds(matchStatePacket.PlayerIds.ToList());
+            _gameModel.SetSeats(matchStatePacket.PlayerIds.ToList()); // seats align to index
         }
 
         private void HandleHandUpdate(byte[] payload)
@@ -147,5 +148,6 @@ namespace TienLen.Unity.Infrastructure.Network
         {
             OnError?.Invoke(message);
         }
+
     }
 }
