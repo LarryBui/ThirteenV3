@@ -34,7 +34,7 @@ namespace TienLen.Unity.Infrastructure.Network
 
         public void Handle(IMatchState state)
         {
-            Log.Information("[MatchState]: ",state);
+            Log.Information("Handling [MatchState]: {@MatchState} ", state);
             if (state?.State == null || state.State.Length == 0)
             {
                 return;
@@ -124,7 +124,7 @@ namespace TienLen.Unity.Infrastructure.Network
         private void HandleMatchState(byte[] payload)
         {
             var matchStatePacket = MatchStatePacket.Parser.ParseFrom(payload);
-            Log.Information("Returned [MatchState]", matchStatePacket);
+            Log.Information("Updated [MatchState]: {@MatchStatePacket}, {@Payload}", matchStatePacket, payload);
             _gameModel.SetIsPlaying(matchStatePacket.IsPlaying);
             _gameModel.SetMatchOwner(matchStatePacket.OwnerId);
             _gameModel.UpdateBoard(matchStatePacket.Board.Select(c => new DomainClasses.Card((Domain.Enums.Rank)c.Rank, (Domain.Enums.Suit)c.Suit)).ToList());
