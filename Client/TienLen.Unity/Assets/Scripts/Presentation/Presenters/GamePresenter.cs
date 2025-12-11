@@ -321,11 +321,24 @@ namespace TienLen.Unity.Presentation.Presenters
             {
                 presenceLookup[_gameSession.CurrentRoom.Self.UserId] = _gameSession.CurrentRoom.Self;
             }
-            foreach (var presence in _gameSession.ConnectedPlayers)
+            if (_gameSession?.CurrentRoom?.Presences != null)
             {
-                if (presence != null)
+                foreach (var presence in _gameSession.CurrentRoom.Presences)
                 {
-                    presenceLookup[presence.UserId] = presence;
+                    if (presence != null)
+                    {
+                        presenceLookup[presence.UserId] = presence;
+                    }
+                }
+            }
+            if (_gameSession?.ConnectedPlayers != null)
+            {
+                foreach (var presence in _gameSession.ConnectedPlayers)
+                {
+                    if (presence != null)
+                    {
+                        presenceLookup[presence.UserId] = presence;
+                    }
                 }
             }
 
