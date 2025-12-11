@@ -1761,8 +1761,11 @@ MonoBehaviour:
   _deckPosition: {fileID: 646917720}
   _cardContainer: {fileID: 1843092955}
   _borderPadding: 200
-  _dealDuration: 0.5
-  _dealInterval: 0.2
+  _dealDuration: 2
+  _dealInterval: 0.1
+  OnDealComplete:
+    m_PersistentCalls:
+      m_Calls: []
   _simulateDeal: 0
 --- !u!1001 &1313818476
 PrefabInstance:

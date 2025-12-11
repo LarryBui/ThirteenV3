@@ -14,7 +14,7 @@ namespace TienLen.Unity.Presentation.Views
         [SerializeField] private RectTransform _cardContainer;
         [Tooltip("Distance from the screen border to stop the card")]
         [SerializeField] private float _borderPadding = 200f;
-        [SerializeField] private float _dealDuration = 0.5f;
+        [SerializeField] private float _dealDuration = 0.25f;
         [SerializeField] private float _dealInterval = 0.2f;
 
         [Header("Events")]
@@ -102,7 +102,7 @@ namespace TienLen.Unity.Presentation.Views
                 cardRect.anchoredPosition = Vector2.zero; // Reset to center relative to parent if parent is centered
 
                 cardRect.DOAnchorPos(targetLocalPosition, _dealDuration)
-                    .SetEase(Ease.OutBack); // Added a little bounce for "dealing" feel
+                    .SetEase(Ease.OutQuad);
 
                 // Optional: Rotate the card to face the player? 
                 // The prompt didn't ask, but usually:
