@@ -103,7 +103,8 @@ namespace TienLen.Unity.Presentation.Views
                 cardRect.anchoredPosition = Vector2.zero; // Reset to center relative to parent if parent is centered
 
                 cardRect.DOAnchorPos(targetLocalPosition, _dealDuration)
-                    .SetEase(Ease.OutQuad);
+                    .SetEase(Ease.OutQuad)
+                    .OnComplete(() => cardObj.SetActive(false));
 
                 // Optional: Rotate the card to face the player? 
                 // The prompt didn't ask, but usually:
