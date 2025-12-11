@@ -28,8 +28,6 @@ namespace TienLen.Unity.Presentation.Views
 
         public void RenderHand(IEnumerable<Card> cards)
         {
-            // RenderHandAnimated(cards).Forget();
-
             // Clear existing immediately
             ClearHand();
             // Spawn new
@@ -41,7 +39,7 @@ namespace TienLen.Unity.Presentation.Views
             }
         }
 
-        private async UniTaskVoid RenderHandAnimated(IEnumerable<Card> cards)
+        public async UniTaskVoid RenderHandInitial(IEnumerable<Card> cards)
         {
             Debug.Log($"[HandView] Rendering hand with {GetCardCount(cards)} cards.");
             
@@ -55,7 +53,7 @@ namespace TienLen.Unity.Presentation.Views
                 go.Initialize(card);
                 _activeCards.Add(go);
                 
-                await UniTask.Delay(300); // 300ms delay per card
+                await UniTask.Delay(50); // 50ms delay per card
             }
             Debug.Log("[HandView] Finished rendering hand.");
         }
