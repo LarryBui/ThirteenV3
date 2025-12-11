@@ -25,25 +25,22 @@ namespace TienLen.Unity.Infrastructure.Logging
                 logConfig.WriteTo.Unity3D(outputTemplate: "[{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}");
             }
 
-            // 2. File Sink
-            if (!Application.isEditor)
-            {
-                string logPath = Path.Combine(Application.persistentDataPath, "Logs", "game_log.json");
-                
-                logConfig.WriteTo.File(
-                    formatter: new JsonFormatter(),
-                    path: logPath,
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 7,
-                    fileSizeLimitBytes: 10 * 1024 * 1024,
-                    rollOnFileSizeLimit: true
-                );
-            }
+            // 2. File Sink (also in Editor so we can inspect logs easily)
+            string logPath = Path.Combine(Application.persistentDataPath, "Logs", "game_log.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath) ?? Application.persistentDataPath);
+            logConfig.WriteTo.File(
+                formatter: new JsonFormatter(),
+                path: logPath,
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                fileSizeLimitBytes: 10 * 1024 * 1024,
+                rollOnFileSizeLimit: true
+            );
 
             Log.Logger = logConfig.CreateLogger();
             _isInitialized = true;
-            
-            Log.Information("GameLogger Initialized.");
+
+            Log.Information("GameLogger Initialized. Persistent logs at {LogPath}", logPath);
         }
 
         public static void CloseAndFlush()

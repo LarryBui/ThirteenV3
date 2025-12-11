@@ -20,6 +20,8 @@ type MatchState struct {
 	Spectators map[string]bool             `json:"spectators"`
 	OwnerID    string                      `json:"owner_id"`
 	Game       *tienlen.Game               `json:"-"`
+	Seats      [4]string                   `json:"seats"`           // seat index -> userID (empty string means free)
+	SeatByUser map[string]int              `json:"seat_by_user_id"` // userID -> seat index
 }
 
 type Match struct{}
@@ -30,13 +32,14 @@ func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Presences:  make(map[string]runtime.Presence),
 		Spectators: make(map[string]bool),
 		Game:       tienlen.NewGame(),
+		SeatByUser: make(map[string]int),
 	}
 	return state, 10, "TienLen"
 }
 
 func (m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
 	s := state.(*MatchState)
-	if len(s.Presences) >= 4 {
+	if m.findOpenSeat(s) == -1 {
 		return s, false, "Match is full"
 	}
 	return s, true, ""
@@ -47,6 +50,7 @@ func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 	for _, p := range presences {
 		userID := p.GetUserId()
 		s.Presences[userID] = p
+		m.assignSeat(logger, s, dispatcher, userID)
 
 		if s.OwnerID == "" {
 			s.OwnerID = userID
@@ -58,11 +62,11 @@ func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 		if s.Game.IsPlaying() {
 			if s.Game.HasPlayer(userID) {
-				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), p)
+				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
 				adapter.SendHand(dispatcher, userID, s.Game.HandOf(userID), []runtime.Presence{p})
 			} else {
 				s.Spectators[userID] = true
-				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), p)
+				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
 			}
 		}
 	}
@@ -78,6 +82,7 @@ func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 		if userID == s.OwnerID {
 			ownerLeft = true
 		}
+		m.freeSeat(s, dispatcher, userID)
 		delete(s.Presences, userID)
 		delete(s.Spectators, userID)
 		logger.Info("Player %s left match", userID)
@@ -179,13 +184,7 @@ func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher,
 }
 
 func (m *Match) startMatch(s *MatchState, dispatcher runtime.MatchDispatcher) error {
-	activePlayers := make([]string, 0, len(s.Presences))
-	for uid := range s.Presences {
-		if s.Spectators[uid] {
-			continue
-		}
-		activePlayers = append(activePlayers, uid)
-	}
+	activePlayers := m.orderedSeatedPlayers(s)
 	if len(activePlayers) == 0 {
 		return errors.New("no active players to start")
 	}
@@ -204,4 +203,52 @@ func (m *Match) startMatch(s *MatchState, dispatcher runtime.MatchDispatcher) er
 func sendError(dispatcher runtime.MatchDispatcher, p runtime.Presence, msg string) {
 	data := []byte(msg)
 	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_ERROR), data, []runtime.Presence{p}, nil, true)
+}
+
+func (m *Match) findOpenSeat(s *MatchState) int {
+	for i := 0; i < len(s.Seats); i++ {
+		if s.Seats[i] == "" {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *Match) assignSeat(logger runtime.Logger, s *MatchState, dispatcher runtime.MatchDispatcher, userID string) {
+	// If user already seated, keep existing seat (handles reconnects).
+	if _, exists := s.SeatByUser[userID]; exists {
+		return
+	}
+	slot := m.findOpenSeat(s)
+	if slot == -1 {
+		logger.Warn("No free seat for user %s", userID)
+		return
+	}
+	s.Seats[slot] = userID
+	s.SeatByUser[userID] = slot
+	adapter.BroadcastSeatUpdate(dispatcher, s.Seats, s.OwnerID, s.Game)
+}
+
+func (m *Match) freeSeat(s *MatchState, dispatcher runtime.MatchDispatcher, userID string) {
+	slot, ok := s.SeatByUser[userID]
+	if !ok {
+		return
+	}
+	s.Seats[slot] = ""
+	delete(s.SeatByUser, userID)
+	adapter.BroadcastSeatUpdate(dispatcher, s.Seats, s.OwnerID, s.Game)
+}
+
+func (m *Match) orderedSeatedPlayers(s *MatchState) []string {
+	players := make([]string, 0, len(s.SeatByUser))
+	for _, uid := range s.Seats {
+		if uid == "" {
+			continue
+		}
+		if s.Spectators[uid] {
+			continue
+		}
+		players = append(players, uid)
+	}
+	return players
 }

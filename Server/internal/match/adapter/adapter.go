@@ -32,13 +32,13 @@ func BroadcastOwnerUpdate(dispatcher runtime.MatchDispatcher, ownerID string) {
 }
 
 // SendMatchState synchronizes a late joiner with the current match state.
-func SendMatchState(dispatcher runtime.MatchDispatcher, snapshot tienlen.Snapshot, receiver runtime.Presence) {
+func SendMatchState(dispatcher runtime.MatchDispatcher, snapshot tienlen.Snapshot, seats []string, receiver runtime.Presence) {
 	packet := &pb.MatchStatePacket{
 		IsPlaying:      snapshot.IsPlaying,
 		OwnerId:        snapshot.OwnerID,
 		Board:          toPBCards(snapshot.Board),
 		ActivePlayerId: snapshot.ActivePlayerID,
-		PlayerIds:      snapshot.PlayerIDs,
+		PlayerIds:      seats,
 	}
 	data, err := proto.Marshal(packet)
 	if err != nil {
@@ -67,7 +67,7 @@ func sendMatchStarted(dispatcher runtime.MatchDispatcher, presences map[string]r
 		}
 		packet := &pb.MatchStartPacket{
 			Hand:      toPBCards(hand),
-			PlayerIds: ev.TurnOrder,
+			PlayerIds: ev.TurnOrder, // TurnOrder now matches seat order
 			OwnerId:   ev.OwnerID,
 		}
 		data, err := proto.Marshal(packet)
@@ -97,6 +97,31 @@ func sendTurnUpdate(dispatcher runtime.MatchDispatcher, ev tienlen.TurnChanged) 
 		return
 	}
 	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_TURN_UPDATE), data, nil, nil, true)
+}
+
+// BroadcastSeatUpdate sends the current seat map to all players.
+func BroadcastSeatUpdate(dispatcher runtime.MatchDispatcher, seats [4]string, ownerID string, game *tienlen.Game) {
+	snapshot := tienlen.Snapshot{}
+	if game != nil {
+		snapshot = game.Snapshot()
+	}
+	seatsCopy := make([]string, len(seats))
+	for i, v := range seats {
+		seatsCopy[i] = v
+	}
+
+	packet := &pb.MatchStatePacket{
+		IsPlaying:      snapshot.IsPlaying,
+		OwnerId:        ownerID,
+		Board:          toPBCards(snapshot.Board),
+		ActivePlayerId: snapshot.ActivePlayerID,
+		PlayerIds:      seatsCopy,
+	}
+	data, err := proto.Marshal(packet)
+	if err != nil {
+		return
+	}
+	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_STATE), data, nil, nil, true)
 }
 
 func sendRoundEnd(dispatcher runtime.MatchDispatcher, ev tienlen.RoundEnded) {

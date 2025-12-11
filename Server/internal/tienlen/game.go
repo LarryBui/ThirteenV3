@@ -39,7 +39,7 @@ type Snapshot struct {
 	OwnerID        string
 	Board          []Card
 	ActivePlayerID string
-	PlayerIDs      []string
+	PlayerIDs      []string // Seat/turn order as assigned by the match
 }
 
 // Game contains pure Tien Len state and rules.

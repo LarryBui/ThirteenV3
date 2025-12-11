@@ -7,6 +7,7 @@ using TienLen.Gen;
 using TienLen.Unity.Domain.Aggregates;
 using DomainClasses = TienLen.Unity.Domain.ValueObjects;
 using Serilog;
+using System.Diagnostics;
 
 namespace TienLen.Unity.Infrastructure.Network
 {
@@ -33,11 +34,11 @@ namespace TienLen.Unity.Infrastructure.Network
 
         public void Handle(IMatchState state)
         {
+            Log.Information("[MatchState]: ",state);
             if (state?.State == null || state.State.Length == 0)
             {
                 return;
             }
-
             var op = (OpCode)state.OpCode;
             var payload = state.State;
 
@@ -123,6 +124,7 @@ namespace TienLen.Unity.Infrastructure.Network
         private void HandleMatchState(byte[] payload)
         {
             var matchStatePacket = MatchStatePacket.Parser.ParseFrom(payload);
+            Log.Information("Returned [MatchState]", matchStatePacket);
             _gameModel.SetIsPlaying(matchStatePacket.IsPlaying);
             _gameModel.SetMatchOwner(matchStatePacket.OwnerId);
             _gameModel.UpdateBoard(matchStatePacket.Board.Select(c => new DomainClasses.Card((Domain.Enums.Rank)c.Rank, (Domain.Enums.Suit)c.Suit)).ToList());

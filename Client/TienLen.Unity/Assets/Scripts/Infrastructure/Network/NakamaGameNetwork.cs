@@ -74,6 +74,7 @@ namespace TienLen.Unity.Infrastructure.Network
                     var matchId = payload["match_id"];
                     
                     _currentMatch = await _socket.JoinMatchAsync(matchId);
+                    Debug.Log($"Joined match with ID: {_currentMatch}");
                 }
             }
             catch (System.OperationCanceledException)
