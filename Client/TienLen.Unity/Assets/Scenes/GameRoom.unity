@@ -606,19 +606,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 484041231}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1175873424}
-        m_TargetAssemblyTypeName: TienLen.Unity.Presentation.Views.CardDealer, Assembly-CSharp
-        m_MethodName: DealCards
-        m_Mode: 1
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
 --- !u!1 &513819064
 GameObject:
   m_ObjectHideFlags: 0
@@ -2057,6 +2045,7 @@ MonoBehaviour:
   Opponent1Avatar: {fileID: 224421549}
   Opponent2Avatar: {fileID: 551897335}
   Opponent3Avatar: {fileID: 1313818477}
+  GameCardDealer: {fileID: 1175873424}
 --- !u!4 &1605668950
 Transform:
   m_ObjectHideFlags: 0

@@ -45,11 +45,16 @@ namespace TienLen.Unity.Presentation.Presenters
         /// </summary>
         public AvatarView Opponent3Avatar;
 
+        [Header("Effects")]
+        public CardDealer GameCardDealer; // Reference to the CardDealer
+
         private Dictionary<Card, Vector3> _pendingPlayedCardOrigins;
         private ILogger<GamePresenter> _logger;
         private IGameNetwork _network;
         private GameSession _gameSession;
         private GameModel _gameModel; // New
+        
+        private bool _waitingForDealAnimation = false;
 
         [Inject]
         public void Construct(ILogger<GamePresenter> logger, IGameNetwork network, GameSession gameSession, GameModel gameModel)
@@ -76,6 +81,12 @@ namespace TienLen.Unity.Presentation.Presenters
             _gameModel.OnGameOver += OnGameModelGameOver;             // New subscription
             _gameModel.OnPlayerIdsUpdated += OnGameModelPlayerIdsUpdated; // New subscription
             _gameModel.OnSeatsUpdated += OnGameModelSeatsUpdated;
+            
+            // Subscribe to CardDealer Events
+            if (GameCardDealer != null)
+            {
+                GameCardDealer.OnDealComplete.AddListener(OnDealingAnimationComplete);
+            }
             
             // Unsubscribe from Network Events (NakamaGameNetwork now updates GameModel directly)
             // _network.OnMatchStart -= HandleMatchStart; // Removed
@@ -130,6 +141,12 @@ namespace TienLen.Unity.Presentation.Presenters
         // GameModel Event Handlers
         private void OnGameModelHandUpdated(Hand hand)
         {
+            if (_waitingForDealAnimation)
+            {
+                _logger.LogInformation("Waiting for dealing animation to complete. Skipping Hand Update.");
+                return;
+            }
+
             _logger.LogInformation($"GameModel Hand Updated! Received Hand with {hand.Cards.Count} cards.");
             PlayerHandView.RenderHand(hand.Cards);
             if (_gameModel.ActivePlayerId == _gameSession.CurrentRoom.Self.UserId)
@@ -246,8 +263,30 @@ namespace TienLen.Unity.Presentation.Presenters
             PlayButton.gameObject.SetActive(isPlaying);
             SkipButton.gameObject.SetActive(isPlaying);
 
+            if (isPlaying && GameCardDealer != null)
+            {
+                _waitingForDealAnimation = true;
+                // Clear the hand view immediately so we don't see old/static cards while dealing happens
+                if (PlayerHandView != null) 
+                    PlayerHandView.RenderHand(new List<Card>()); 
+                
+                GameCardDealer.DealCards();
+            }
+
             // Update start game button visibility when playing state changes
             UpdateStartGameButtonVisibility();
+        }
+
+        private void OnDealingAnimationComplete()
+        {
+            _logger.LogInformation("Dealing animation complete. Rendering initial hand.");
+            _waitingForDealAnimation = false;
+            
+            if (_gameModel != null && _gameModel.PlayerHand != null && PlayerHandView != null)
+            {
+                // Trigger the special initial render (animated appearance)
+                PlayerHandView.RenderHandInitial(_gameModel.PlayerHand).Forget();
+            }
         }
 
         private void OnGameModelGameOver(string winnerId)
