@@ -124,7 +124,7 @@ namespace TienLen.Unity.Infrastructure.Network
         private void HandleMatchState(byte[] payload)
         {
             var matchStatePacket = MatchStatePacket.Parser.ParseFrom(payload);
-            Log.Information("Updated [MatchState]: {@MatchStatePacket}, {@Payload}", matchStatePacket, payload);
+            Log.Information("Updated [MatchState]: {@MatchStatePacket}", matchStatePacket);
             _gameModel.SetIsPlaying(matchStatePacket.IsPlaying);
             _gameModel.SetMatchOwner(matchStatePacket.OwnerId);
             _gameModel.UpdateBoard(matchStatePacket.Board.Select(c => new DomainClasses.Card((Domain.Enums.Rank)c.Rank, (Domain.Enums.Suit)c.Suit)).ToList());

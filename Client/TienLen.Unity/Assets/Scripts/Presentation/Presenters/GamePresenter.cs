@@ -30,11 +30,22 @@ namespace TienLen.Unity.Presentation.Presenters
         public BoardView GameBoardView; 
         public SeatManager GameSeatManager; 
 
+        /// <summary>
+        /// Prefab used to render a player's avatar at a seat anchor.
+        /// </summary>
+        public AvatarView AvatarPrefab; // Prefab to spawn per seat
+
+        /// <summary>
+        /// Seat anchor transforms ordered by seat index; used to place avatars.
+        /// </summary>
+        public Transform[] SeatAvatarAnchors; // Seat index -> anchor transform
+
         private Dictionary<Card, Vector3> _pendingPlayedCardOrigins;
         private ILogger<GamePresenter> _logger;
         private IGameNetwork _network;
         private GameSession _gameSession;
         private GameModel _gameModel; // New
+        private AvatarView[] _seatAvatars;
 
         [Inject]
         public void Construct(ILogger<GamePresenter> logger, IGameNetwork network, GameSession gameSession, GameModel gameModel)
@@ -60,6 +71,7 @@ namespace TienLen.Unity.Presentation.Presenters
             _gameModel.OnIsPlayingChanged += OnGameModelIsPlayingChanged; // New subscription
             _gameModel.OnGameOver += OnGameModelGameOver;             // New subscription
             _gameModel.OnPlayerIdsUpdated += OnGameModelPlayerIdsUpdated; // New subscription
+            _gameModel.OnSeatsUpdated += OnGameModelSeatsUpdated;
             
             // Unsubscribe from Network Events (NakamaGameNetwork now updates GameModel directly)
             // _network.OnMatchStart -= HandleMatchStart; // Removed
@@ -70,6 +82,7 @@ namespace TienLen.Unity.Presentation.Presenters
             // GameRoom Initialization Logic
             InitializeGameRoom();
             UpdateStartGameButtonVisibility(); // Initial call to set button state
+            OnGameModelSeatsUpdated(_gameModel.Seats); // Render any initial seat state
         }
 
         private void InitializeGameRoom()
@@ -268,6 +281,91 @@ namespace TienLen.Unity.Presentation.Presenters
             // The `GameSeatManager.SetupPlayerSeats` will be refactored later to use the presences directly from the network or a combined list.
         }
 
+        /// <summary>
+        /// Renders or hides avatars when the authoritative seat list changes.
+        /// </summary>
+        /// <param name="seats">Seat array where index maps to anchor and value is userId.</param>
+        private void OnGameModelSeatsUpdated(IReadOnlyList<string> seats)
+        {
+            if (seats == null) return;
+            if (SeatAvatarAnchors == null || SeatAvatarAnchors.Length == 0)
+            {
+                _logger.LogWarning("Seat anchors not configured for avatars.");
+                return;
+            }
+            if (AvatarPrefab == null)
+            {
+                _logger.LogWarning("AvatarPrefab not assigned; cannot render avatars.");
+                return;
+            }
+
+            if (_seatAvatars == null || _seatAvatars.Length != SeatAvatarAnchors.Length)
+            {
+                _seatAvatars = new AvatarView[SeatAvatarAnchors.Length];
+            }
+
+            var presenceLookup = new Dictionary<string, IUserPresence>();
+            if (_gameSession?.CurrentRoom?.Self != null)
+            {
+                presenceLookup[_gameSession.CurrentRoom.Self.UserId] = _gameSession.CurrentRoom.Self;
+            }
+            foreach (var presence in _gameSession.ConnectedPlayers)
+            {
+                if (presence != null)
+                {
+                    presenceLookup[presence.UserId] = presence;
+                }
+            }
+
+            int count = Mathf.Min(seats.Count, SeatAvatarAnchors.Length);
+            for (int i = 0; i < count; i++)
+            {
+                var anchor = SeatAvatarAnchors[i];
+                if (anchor == null) continue;
+
+                var userId = seats[i];
+                if (string.IsNullOrEmpty(userId))
+                {
+                    if (_seatAvatars[i] != null)
+                    {
+                        _seatAvatars[i].gameObject.SetActive(false);
+                    }
+                    continue;
+                }
+
+                var avatar = _seatAvatars[i];
+                if (avatar == null)
+                {
+                    avatar = Instantiate(AvatarPrefab, anchor, worldPositionStays: false);
+                    _seatAvatars[i] = avatar;
+                }
+                else
+                {
+                    avatar.transform.SetParent(anchor, false);
+                    avatar.gameObject.SetActive(true);
+                }
+
+                if (presenceLookup.TryGetValue(userId, out var presence))
+                {
+                    avatar.SetName(presence.Username);
+                }
+                else
+                {
+                    avatar.SetName("Player");
+                }
+                // avatar.SetAvatar(sprite); // Hook up when avatars per user are available
+            }
+
+            // Hide any unused cached avatars beyond current seat count
+            for (int i = count; i < SeatAvatarAnchors.Length; i++)
+            {
+                if (_seatAvatars[i] != null)
+                {
+                    _seatAvatars[i].gameObject.SetActive(false);
+                }
+            }
+        }
+
         private void UpdateStartGameButtonVisibility()
         {
             if (StartGameButton == null) return;
@@ -438,6 +536,7 @@ namespace TienLen.Unity.Presentation.Presenters
                 _gameModel.OnIsPlayingChanged -= OnGameModelIsPlayingChanged; // New unsubscription
                 _gameModel.OnGameOver -= OnGameModelGameOver;             // New unsubscription
                 _gameModel.OnPlayerIdsUpdated -= OnGameModelPlayerIdsUpdated; // New unsubscription
+                _gameModel.OnSeatsUpdated -= OnGameModelSeatsUpdated;
             }
 
             if (_network != null)
@@ -447,5 +546,3 @@ namespace TienLen.Unity.Presentation.Presenters
         }
     }
 }
-
-
