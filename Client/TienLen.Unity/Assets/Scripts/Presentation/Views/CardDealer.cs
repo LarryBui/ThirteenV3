@@ -14,8 +14,8 @@ namespace TienLen.Unity.Presentation.Views
         [SerializeField] private RectTransform _cardContainer;
         [Tooltip("Distance from the screen border to stop the card")]
         [SerializeField] private float _borderPadding = 200f;
-        [SerializeField] private float _dealDuration = 0.25f;
-        [SerializeField] private float _dealInterval = 0.2f;
+        [SerializeField] private float _dealDuration = 0.3f;
+        [SerializeField] private float _dealInterval = 0.01f;
 
         [Header("Events")]
         public UnityEvent OnDealComplete;
@@ -65,7 +65,7 @@ namespace TienLen.Unity.Presentation.Views
                 GetWestPosition()
             };
 
-            for (int i = 0; i < 13; i++)
+            for (int i = 0; i < 10; i++)
             {
                 foreach (var targetPos in targets)
                 {
@@ -76,6 +76,7 @@ namespace TienLen.Unity.Presentation.Views
 
             // Wait for the last card's animation to finish
             yield return new WaitForSeconds(_dealDuration);
+            
             OnDealComplete?.Invoke();
         }
 
