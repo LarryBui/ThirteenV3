@@ -22,30 +22,34 @@ namespace TienLen.Unity.Presentation.Presenters
     {
         [Header("UI References")]
         public HandView PlayerHandView;
-        public AvatarView LocalPlayerAvatar; // New Avatar reference
         public Button PlayButton;
         public Button SkipButton;
         public Button StartGameButton; 
         public TMP_Text StatusText;
         public BoardView GameBoardView; 
         public SeatManager GameSeatManager; 
+        public AvatarView LocalPlayerAvatar; // Existing local avatar reference
 
         /// <summary>
-        /// Prefab used to render a player's avatar at a seat anchor.
+        /// Avatar view assigned to the next seat clockwise from the local player.
         /// </summary>
-        public AvatarView AvatarPrefab; // Prefab to spawn per seat
+        public AvatarView Opponent1Avatar;
 
         /// <summary>
-        /// Seat anchor transforms ordered by seat index; used to place avatars.
+        /// Avatar view assigned two seats clockwise from the local player.
         /// </summary>
-        public Transform[] SeatAvatarAnchors; // Seat index -> anchor transform
+        public AvatarView Opponent2Avatar;
+
+        /// <summary>
+        /// Avatar view assigned three seats clockwise from the local player.
+        /// </summary>
+        public AvatarView Opponent3Avatar;
 
         private Dictionary<Card, Vector3> _pendingPlayedCardOrigins;
         private ILogger<GamePresenter> _logger;
         private IGameNetwork _network;
         private GameSession _gameSession;
         private GameModel _gameModel; // New
-        private AvatarView[] _seatAvatars;
 
         [Inject]
         public void Construct(ILogger<GamePresenter> logger, IGameNetwork network, GameSession gameSession, GameModel gameModel)
@@ -284,24 +288,35 @@ namespace TienLen.Unity.Presentation.Presenters
         /// <summary>
         /// Renders or hides avatars when the authoritative seat list changes.
         /// </summary>
-        /// <param name="seats">Seat array where index maps to anchor and value is userId.</param>
+        /// <param name="seats">Seat array where index maps to seat number and value is userId.</param>
         private void OnGameModelSeatsUpdated(IReadOnlyList<string> seats)
         {
-            if (seats == null) return;
-            if (SeatAvatarAnchors == null || SeatAvatarAnchors.Length == 0)
+            _logger.LogInformation("Seats updated: {Seats}", seats == null ? "null" : seats);
+            if (seats == null || seats.Count == 0) return;
+
+            var localUserId = _gameSession?.CurrentRoom?.Self?.UserId;
+            Debug.Log("local user id: " + localUserId);
+            if (string.IsNullOrEmpty(localUserId))
             {
-                _logger.LogWarning("Seat anchors not configured for avatars.");
-                return;
-            }
-            if (AvatarPrefab == null)
-            {
-                _logger.LogWarning("AvatarPrefab not assigned; cannot render avatars.");
+                _logger.LogWarning("Cannot render avatars: local user ID not available.");
                 return;
             }
 
-            if (_seatAvatars == null || _seatAvatars.Length != SeatAvatarAnchors.Length)
+            int localSeatIndex = -1;
+            for (int i = 0; i < seats.Count; i++)
             {
-                _seatAvatars = new AvatarView[SeatAvatarAnchors.Length];
+                if (seats[i] == localUserId)
+                {
+                    localSeatIndex = i;
+                    break;
+                }
+            }
+            _logger.LogInformation("Local seat index: {Index}", localSeatIndex);
+
+            if (localSeatIndex < 0)
+            {
+                _logger.LogWarning("Local user ID not present in seats list; skipping avatar render.");
+                return;
             }
 
             var presenceLookup = new Dictionary<string, IUserPresence>();
@@ -317,53 +332,37 @@ namespace TienLen.Unity.Presentation.Presenters
                 }
             }
 
-            int count = Mathf.Min(seats.Count, SeatAvatarAnchors.Length);
-            for (int i = 0; i < count; i++)
+            SetAvatarForSeat(LocalPlayerAvatar, seats, localSeatIndex, presenceLookup, isLocal: true);
+            SetAvatarForSeat(Opponent1Avatar, seats, (localSeatIndex + 1) % seats.Count, presenceLookup);
+            SetAvatarForSeat(Opponent2Avatar, seats, (localSeatIndex + 2) % seats.Count, presenceLookup);
+            SetAvatarForSeat(Opponent3Avatar, seats, (localSeatIndex + 3) % seats.Count, presenceLookup);
+        }
+
+        private void SetAvatarForSeat(AvatarView avatarView, IReadOnlyList<string> seats, int seatIndex, Dictionary<string, IUserPresence> presenceLookup, bool isLocal = false)
+        {
+            _logger.LogInformation("SetAvatarForSeat: {@PresenceLookup}", presenceLookup);
+            _logger.LogInformation("Setting avatar for seat index {@Seats}", seats);
+            if (avatarView == null) return;
+            if (seats == null || seatIndex < 0 || seatIndex >= seats.Count) return;
+
+            var userId = seats[seatIndex];
+            _logger.LogInformation("userId: {UserId}", userId);
+            if (string.IsNullOrEmpty(userId))
             {
-                var anchor = SeatAvatarAnchors[i];
-                if (anchor == null) continue;
-
-                var userId = seats[i];
-                if (string.IsNullOrEmpty(userId))
-                {
-                    if (_seatAvatars[i] != null)
-                    {
-                        _seatAvatars[i].gameObject.SetActive(false);
-                    }
-                    continue;
-                }
-
-                var avatar = _seatAvatars[i];
-                if (avatar == null)
-                {
-                    avatar = Instantiate(AvatarPrefab, anchor, worldPositionStays: false);
-                    _seatAvatars[i] = avatar;
-                }
-                else
-                {
-                    avatar.transform.SetParent(anchor, false);
-                    avatar.gameObject.SetActive(true);
-                }
-
-                if (presenceLookup.TryGetValue(userId, out var presence))
-                {
-                    avatar.SetName(presence.Username);
-                }
-                else
-                {
-                    avatar.SetName("Player");
-                }
-                // avatar.SetAvatar(sprite); // Hook up when avatars per user are available
+                avatarView.gameObject.SetActive(false);
+                return;
             }
 
-            // Hide any unused cached avatars beyond current seat count
-            for (int i = count; i < SeatAvatarAnchors.Length; i++)
+            avatarView.gameObject.SetActive(true);
+            
+            if (presenceLookup.TryGetValue(userId, out var presence))
             {
-                if (_seatAvatars[i] != null)
-                {
-                    _seatAvatars[i].gameObject.SetActive(false);
-                }
+            _logger.LogInformation("user's Presence: {@Presence}", presence);
+
+                avatarView.SetName(presence.Username);
             }
+           
+            // avatarView.SetAvatar(sprite); // Hook up when avatars per user are available
         }
 
         private void UpdateStartGameButtonVisibility()
