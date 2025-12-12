@@ -286,6 +286,38 @@ func TestGameEndsWhenOnePlayerRemains_3Players(t *testing.T) {
 	}
 }
 
+func TestGameEndsWhenOnePlayerRemains_1Player(t *testing.T) {
+	players := []string{"p1"}
+	hands := map[string][]Card{
+		"p1": {{Rank: 0, Suit: 0}},
+	}
+	g := setupDeterministicGame(players, "p1", hands)
+
+	var events []Event
+	var gameOverEvent *GameOver
+	var playerFinishedEvents []PlayerFinished
+
+	// p1 plays last card -> Game Should End immediately
+	events, err := g.PlayCards("p1", []int{0})
+	if err != nil {
+		t.Fatalf("p1 PlayCards error: %v", err)
+	}
+	processEvents(events, &gameOverEvent, &playerFinishedEvents)
+
+	if len(playerFinishedEvents) != 1 || playerFinishedEvents[0].PlayerID != "p1" {
+		t.Fatalf("expected p1 to finish")
+	}
+	if gameOverEvent == nil {
+		t.Fatal("expected GameOver event after 1st player finished in 1-player game")
+	}
+	if g.IsPlaying() {
+		t.Fatal("expected game to stop")
+	}
+	if len(g.Winners) != 1 {
+		t.Fatalf("expected 1 winner, got %d", len(g.Winners))
+	}
+}
+
 // Helper to extract events for testing
 func processEvents(events []Event, gameOver **GameOver, playerFinished *[]PlayerFinished) {
 	// Clear previous player finished events before processing new ones

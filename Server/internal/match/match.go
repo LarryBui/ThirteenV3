@@ -20,255 +20,246 @@ type MatchState struct {
 	Spectators map[string]bool             `json:"spectators"`
 	OwnerID    string                      `json:"owner_id"`
 	Game       *tienlen.Game               `json:"-"`
-		Seats      [4]string                   `json:"seats"`           // seat index -> userID (empty string means free)
-		SeatByUser map[string]int              `json:"seat_by_user_id"` // userID -> seat index
-		
-		// LastGameWinnerID stores the user ID of the player who won (came in 1st place) 
-			// the previous game. This is used to determine who starts the next game.
-			LastGameWinnerID string                  `json:"last_game_winner_id"` 
-			// IsGameSessionOver indicates if the current game session within this match has ended.
-			// This allows the match to remain active for potential restarts without terminating.
-			IsGameSessionOver bool                    `json:"is_game_session_over"`
-		}	
-	type Match struct{}
-	
-	func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
-		logger.Info("Match initialized")
-		state := &MatchState{
-			Presences:  make(map[string]runtime.Presence),
-			Spectators: make(map[string]bool),
-			Game:       tienlen.NewGame(),
-			SeatByUser: make(map[string]int),
-		}
-		return state, 10, "TienLen"
+	Seats      [4]string                   `json:"seats"`           // seat index -> userID (empty string means free)
+	SeatByUser map[string]int              `json:"seat_by_user_id"` // userID -> seat index
+
+	// LastGameWinnerID stores the user ID of the player who won (came in 1st place)
+	// the previous game. This is used to determine who starts the next game.
+	LastGameWinnerID string `json:"last_game_winner_id"`
+	// IsGameSessionOver indicates if the current game session within this match has ended.
+	// This allows the match to remain active for potential restarts without terminating.
+	IsGameSessionOver bool `json:"is_game_session_over"`
+}
+type Match struct{}
+
+func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
+	logger.Info("Match initialized")
+	state := &MatchState{
+		Presences:  make(map[string]runtime.Presence),
+		Spectators: make(map[string]bool),
+		Game:       tienlen.NewGame(),
+		SeatByUser: make(map[string]int),
 	}
-	
-	func (m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
-		s := state.(*MatchState)
-		if m.findOpenSeat(s) == -1 {
-			return s, false, "Match is full"
-		}
-		return s, true, ""
+	return state, 10, "TienLen"
+}
+
+func (m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
+	s := state.(*MatchState)
+	if m.findOpenSeat(s) == -1 {
+		return s, false, "Match is full"
 	}
-	
-	func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
-		s := state.(*MatchState)
-		for _, p := range presences {
-			userID := p.GetUserId()
-			s.Presences[userID] = p
-			m.assignSeat(logger, s, dispatcher, userID)
-	
-			if s.OwnerID == "" {
-				s.OwnerID = userID
-				logger.Info("Player %s set as match owner", userID)
-				adapter.BroadcastOwnerUpdate(dispatcher, s.OwnerID)
-			}
-	
-			logger.Info("Player %s joined match", userID)
-	
-			if s.Game.IsPlaying() {
-				if s.Game.HasPlayer(userID) {
-					adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
-					adapter.SendHand(dispatcher, userID, s.Game.HandOf(userID), []runtime.Presence{p})
-				} else {
-					s.Spectators[userID] = true
-					adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
-				}
-			}
-		}
-		return s
-	}
-	
-	func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
-		s := state.(*MatchState)
-		ownerLeft := false
-	
-		for _, p := range presences {
-			userID := p.GetUserId()
-			if userID == s.OwnerID {
-				ownerLeft = true
-			}
-			m.freeSeat(s, dispatcher, userID)
-			delete(s.Presences, userID)
-			delete(s.Spectators, userID)
-			logger.Info("Player %s left match", userID)
-		}
-	
-		if len(s.Presences) == 0 {
-			logger.Info("No players remain, destroying match")
-			return nil
-		}
-	
-		if ownerLeft {
-			for uid := range s.Presences {
-				s.OwnerID = uid
-				break
-			}
-			logger.Info("New match owner: %s", s.OwnerID)
+	return s, true, ""
+}
+
+func (m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
+	s := state.(*MatchState)
+	for _, p := range presences {
+		userID := p.GetUserId()
+		s.Presences[userID] = p
+		m.assignSeat(logger, s, dispatcher, userID)
+
+		if s.OwnerID == "" {
+			s.OwnerID = userID
+			logger.Info("Player %s set as match owner", userID)
 			adapter.BroadcastOwnerUpdate(dispatcher, s.OwnerID)
 		}
-	
-		adapter.BroadcastPlayerLeft(dispatcher, seatsAsSlice(s.Seats), s.OwnerID, s.Game)
-	
-		return s
-	}
-	
-	func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
-		s := state.(*MatchState)
-	
-		select {
-		case <-ctx.Done():
-			logger.Info("Context cancelled, terminating match loop")
-			return s
-		default:
+
+		logger.Info("Player %s joined match", userID)
+
+		if s.Game.IsPlaying() {
+			if s.Game.HasPlayer(userID) {
+				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
+				adapter.SendHand(dispatcher, userID, s.Game.HandOf(userID), []runtime.Presence{p})
+			} else {
+				s.Spectators[userID] = true
+				adapter.SendMatchState(dispatcher, s.Game.Snapshot(), s.Seats[:], p)
+			}
 		}
-	
-		for _, msg := range messages {
-			m.handleMessage(s, dispatcher, logger, msg)
+	}
+	return s
+}
+
+func (m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
+	s := state.(*MatchState)
+	ownerLeft := false
+
+	for _, p := range presences {
+		userID := p.GetUserId()
+		if userID == s.OwnerID {
+			ownerLeft = true
 		}
-	
+		m.freeSeat(s, dispatcher, userID)
+		delete(s.Presences, userID)
+		delete(s.Spectators, userID)
+		logger.Info("Player %s left match", userID)
+	}
+
+	if len(s.Presences) == 0 {
+		logger.Info("No players remain, destroying match")
+		return nil
+	}
+
+	if ownerLeft {
+		for uid := range s.Presences {
+			s.OwnerID = uid
+			break
+		}
+		logger.Info("New match owner: %s", s.OwnerID)
+		adapter.BroadcastOwnerUpdate(dispatcher, s.OwnerID)
+	}
+
+	adapter.BroadcastPlayerLeft(dispatcher, seatsAsSlice(s.Seats), s.OwnerID, s.Game)
+
+	return s
+}
+
+func (m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
+	s := state.(*MatchState)
+
+	select {
+	case <-ctx.Done():
+		logger.Info("Context cancelled, terminating match loop")
 		return s
+	default:
 	}
-	
-	func (m *Match) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
-		return state
+
+	for _, msg := range messages {
+		m.handleMessage(s, dispatcher, logger, msg)
 	}
-	
-	func (m *Match) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, data string) (interface{}, string) {
-		return state, "Signal received: " + data
+
+	return s
+}
+
+func (m *Match) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
+	return state
+}
+
+func (m *Match) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, data string) (interface{}, string) {
+	return state, "Signal received: " + data
+}
+
+// --- Message Handling ---
+
+func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtime.Logger, msg runtime.MatchData) {
+	if msg == nil {
+		return
 	}
-	
-	// --- Message Handling ---
-	
-	func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher, logger runtime.Logger, msg runtime.MatchData) {
-		if msg == nil {
+
+	opCode := pb.OpCode(msg.GetOpCode())
+	senderID := msg.GetUserId()
+	senderPresence, ok := s.Presences[senderID]
+	if !ok {
+		logger.Warn("Unknown sender %s", senderID)
+		return
+	}
+
+	switch opCode {
+	case pb.OpCode_OP_MATCH_START_REQUEST:
+		if s.Game.IsPlaying() {
+			logger.Warn("Rejecting start request. Game is playing. Winners: %d, TurnOrder: %d, IsPlaying: %v", len(s.Game.Winners), len(s.Game.TurnOrder), s.Game.IsPlaying())
+			sendError(dispatcher, senderPresence, "Match already started")
 			return
 		}
-	
-		opCode := pb.OpCode(msg.GetOpCode())
-		senderID := msg.GetUserId()
-		senderPresence, ok := s.Presences[senderID]
-		if !ok {
-			logger.Warn("Unknown sender %s", senderID)
+		if err := m.startNewGame(s, dispatcher); err != nil {
+			sendError(dispatcher, senderPresence, err.Error())
 			return
 		}
-	
-		switch opCode {
-		case pb.OpCode_OP_MATCH_START_REQUEST:
-			if s.Game.IsPlaying() {
-				sendError(dispatcher, senderPresence, "Match already started")
-				return
+	case pb.OpCode_OP_PLAY_CARD:
+		req := &pb.PlayCardRequest{}
+		if err := proto.Unmarshal(msg.GetData(), req); err != nil {
+			sendError(dispatcher, senderPresence, "Invalid play request")
+			return
+		}
+		indices := make([]int, 0, len(req.CardIndices))
+		for _, idx := range req.CardIndices {
+			indices = append(indices, int(idx))
+		}
+		events, err := s.Game.PlayCards(senderID, indices)
+		if err != nil {
+			sendError(dispatcher, senderPresence, err.Error())
+			return
+		}
+		adapter.DispatchEvents(dispatcher, s.Presences, events)
+
+		// Check for Game Over event and update LastGameWinnerID.
+
+		// The game engine emits GameOver when the 3rd player finishes,
+
+		// providing the ID of the 1st place winner.
+
+		for _, event := range events {
+
+			if gameOverEvent, ok := event.(tienlen.GameOver); ok {
+
+				s.LastGameWinnerID = gameOverEvent.WinnerID
+
+				s.IsGameSessionOver = true // Set match session as over
+
+				logger.Info("Game Over detected. LastGameWinnerID set to: %s. IsGameSessionOver set to true.", s.LastGameWinnerID)
+
+				break
+
 			}
-			if err := m.startNewGame(s, dispatcher); err != nil {
-				sendError(dispatcher, senderPresence, err.Error())
-				return
-			}
-		case pb.OpCode_OP_PLAY_CARD:
-			req := &pb.PlayCardRequest{}
-			if err := proto.Unmarshal(msg.GetData(), req); err != nil {
-				sendError(dispatcher, senderPresence, "Invalid play request")
-				return
-			}
-			indices := make([]int, 0, len(req.CardIndices))
-			for _, idx := range req.CardIndices {
-				indices = append(indices, int(idx))
-			}
-			events, err := s.Game.PlayCards(senderID, indices)
-			if err != nil {
-				sendError(dispatcher, senderPresence, err.Error())
-				return
-			}
-			adapter.DispatchEvents(dispatcher, s.Presences, events)
-	
-						// Check for Game Over event and update LastGameWinnerID.
-	
-						// The game engine emits GameOver when the 3rd player finishes, 
-	
-						// providing the ID of the 1st place winner.
-	
-						for _, event := range events {
-	
-							if gameOverEvent, ok := event.(tienlen.GameOver); ok {
-	
-								s.LastGameWinnerID = gameOverEvent.WinnerID
-	
-								s.IsGameSessionOver = true // Set match session as over
-	
-								logger.Info("Game Over detected. LastGameWinnerID set to: %s. IsGameSessionOver set to true.", s.LastGameWinnerID)
-	
-								break
-	
-							}
-	
-						}
-	
-			
-	
-					case pb.OpCode_OP_PASS:
-	
-						events, err := s.Game.Pass(senderID)
-	
-						if err != nil {
-	
-							sendError(dispatcher, senderPresence, err.Error())
-	
-							return
-	
-						}
-	
-						adapter.DispatchEvents(dispatcher, s.Presences, events)
-	
-			
-	
-					default:
-	
-						logger.Warn("Unhandled opcode: %d", opCode)
-	
-					}
-	
-				}
-	
-			
-	
-			// startMatch initiates a new game within the match.
-	
-			// It resets the game state, deals cards, and determines the starting player.
-	
-			func (m *Match) startNewGame(s *MatchState, dispatcher runtime.MatchDispatcher) error {
-	
-				activePlayers := m.orderedSeatedPlayers(s)
-	
-				if len(activePlayers) == 0 {
-	
-					return errors.New("no active players to start")
-	
-				}
-	
-			
-	
-				// Reinitialize game state for a new game session
-	
-				s.Game = tienlen.NewGame()
-	
-				s.IsGameSessionOver = false // Reset game session over flag
-	
-			
-	
-				rand.Seed(time.Now().UnixNano())
-	
-				events, err := s.Game.Start(activePlayers, s.OwnerID, s.LastGameWinnerID)
-	
-				if err != nil {
-	
-					return err
-	
-				}
-	
-				adapter.DispatchEvents(dispatcher, s.Presences, events)
-	
-				return nil
-	
-			}
+
+		}
+
+	case pb.OpCode_OP_PASS:
+
+		events, err := s.Game.Pass(senderID)
+
+		if err != nil {
+
+			sendError(dispatcher, senderPresence, err.Error())
+
+			return
+
+		}
+
+		adapter.DispatchEvents(dispatcher, s.Presences, events)
+
+	default:
+
+		logger.Warn("Unhandled opcode: %d", opCode)
+
+	}
+
+}
+
+// startMatch initiates a new game within the match.
+
+// It resets the game state, deals cards, and determines the starting player.
+
+func (m *Match) startNewGame(s *MatchState, dispatcher runtime.MatchDispatcher) error {
+
+	activePlayers := m.orderedSeatedPlayers(s)
+
+	if len(activePlayers) == 0 {
+
+		return errors.New("no active players to start")
+
+	}
+
+	// Reinitialize game state for a new game session
+
+	s.Game = tienlen.NewGame()
+
+	s.IsGameSessionOver = false // Reset game session over flag
+
+	rand.Seed(time.Now().UnixNano())
+
+	events, err := s.Game.Start(activePlayers, s.OwnerID, s.LastGameWinnerID)
+
+	if err != nil {
+
+		return err
+
+	}
+
+	adapter.DispatchEvents(dispatcher, s.Presences, events)
+
+	return nil
+
+}
 
 // --- Helpers ---
 

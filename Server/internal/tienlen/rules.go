@@ -98,9 +98,9 @@ func CanBeat(prevCards, newCards []Card) bool {
 	}
 
 	// 2. Must be same type (e.g. Pair vs Pair, Triple vs Triple)
-	// (Validation of 'isType' is assumed handled by IsValidSet before calling CanBeat, 
+	// (Validation of 'isType' is assumed handled by IsValidSet before calling CanBeat,
 	// but we implicitly rely on structure similarity here).
-	
+
 	// 3. Compare highest card power
 	return getMaxPower(newCards) > getMaxPower(prevCards)
 }

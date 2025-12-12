@@ -317,8 +317,8 @@ namespace TienLen.Unity.Presentation.Presenters
                     StatusText.text = "Game Over!"; // No specific winner, e.g., if match terminated early
                 }
             }
-            // Trigger UI for game over, maybe show a replay button
-            // StartGameButton visibility is handled by OnIsPlayingChanged -> UpdateStartGameButtonVisibility
+            // Ensure Start Game button is visible for the owner so they can restart
+            UpdateStartGameButtonVisibility();
         }
 
         private void OnGameModelPlayerIdsUpdated(IReadOnlyList<string> playerIds)

@@ -42,12 +42,12 @@ type GameOver struct {
 
 // Snapshot captures lightweight game state for late joiners.
 type Snapshot struct {
-	IsPlaying      bool
-	OwnerID        string
-	Board          []Card
-	ActivePlayerID string
-	PlayerIDs      []string // Seat/turn order as assigned by the match
-	Winners        []string
+	IsPlaying       bool
+	OwnerID         string
+	Board           []Card
+	ActivePlayerID  string
+	PlayerIDs       []string // Seat/turn order as assigned by the match
+	Winners         []string
 	FinishedPlayers map[string]bool
 }
 
@@ -61,11 +61,11 @@ type Game struct {
 	RoundSkippers map[string]bool
 	OwnerID       string
 	isPlaying     bool
-	
+
 	// Winners tracks the players who have finished their hands, in order of finishing.
 	// Winners[0] is the 1st place winner, Winners[1] is 2nd, etc.
-	Winners       []string
-	
+	Winners []string
+
 	// FinishedPlayers is a set of userIDs for players who have emptied their hands.
 	// Used to skip these players during turn advancement.
 	FinishedPlayers map[string]bool
@@ -73,10 +73,10 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
-		Hands:         make(map[string][]Card),
-		RoundSkippers: make(map[string]bool),
-		CurrentIdx:    0,
-		Winners:       make([]string, 0, 3), // Max 3 winners in a 4-player game
+		Hands:           make(map[string][]Card),
+		RoundSkippers:   make(map[string]bool),
+		CurrentIdx:      0,
+		Winners:         make([]string, 0, 3), // Max 3 winners in a 4-player game
 		FinishedPlayers: make(map[string]bool),
 	}
 }
@@ -112,12 +112,12 @@ func (g *Game) Snapshot() Snapshot {
 	}
 
 	return Snapshot{
-		IsPlaying:      g.isPlaying,
-		OwnerID:        g.OwnerID,
-		Board:          append([]Card(nil), g.Board...),
-		ActivePlayerID: activeID,
-		PlayerIDs:      playerIDs,
-		Winners:        append([]string(nil), g.Winners...), // Create a copy of Winners slice
+		IsPlaying:       g.isPlaying,
+		OwnerID:         g.OwnerID,
+		Board:           append([]Card(nil), g.Board...),
+		ActivePlayerID:  activeID,
+		PlayerIDs:       playerIDs,
+		Winners:         append([]string(nil), g.Winners...), // Create a copy of Winners slice
 		FinishedPlayers: finishedPlayersCopy,
 	}
 }
@@ -247,13 +247,14 @@ func (g *Game) PlayCards(playerID string, indices []int) ([]Event, error) {
 	if len(remaining) == 0 {
 		g.Winners = append(g.Winners, playerID)
 		g.FinishedPlayers[playerID] = true
-		
+
 		// Emit PlayerFinished event with their rank (1st, 2nd, 3rd)
 		events = append(events, PlayerFinished{PlayerID: playerID, Rank: len(g.Winners)})
 
 		// If this is the (N-1)th player to finish, the game ends.
 		// We stop when only one player remains (the loser).
-		if len(g.Winners) == len(g.TurnOrder)-1 {
+		// Use >= to handle 1-player games (testing) where 1 >= 0.
+		if len(g.Winners) >= len(g.TurnOrder)-1 {
 			g.isPlaying = false
 			// The overall game winner is the 1st place player
 			events = append(events, GameOver{WinnerID: g.Winners[0]})
@@ -265,7 +266,7 @@ func (g *Game) PlayCards(playerID string, indices []int) ([]Event, error) {
 		// We can directly advance turn here, but the turn advancement logic in advanceTurn
 		// will skip this player if they are in g.FinishedPlayers.
 	}
-	
+
 	events = append(events, g.advanceTurn()...)
 	return events, nil
 }
@@ -312,14 +313,14 @@ func (g *Game) advanceTurn() []Event {
 			g.Board = nil
 			g.RoundSkippers = make(map[string]bool)
 			g.LastActor = "" // Clear last actor after round end
-			
+
 			// Find next non-finished player to lead the new round
 			g.CurrentIdx = nextIdx
 			// Ensure the actual player who leads the new round is an active player
 			for g.FinishedPlayers[g.TurnOrder[g.CurrentIdx]] {
 				g.CurrentIdx = (g.CurrentIdx + 1) % count
 			}
-			
+
 			events = append(events,
 				RoundEnded{WinnerID: nextID},
 				TurnChanged{ActivePlayerID: g.TurnOrder[g.CurrentIdx], Board: g.Board},
