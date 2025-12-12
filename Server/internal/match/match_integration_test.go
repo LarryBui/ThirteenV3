@@ -194,3 +194,113 @@ func TestMatchPlayAndPassFlow(t *testing.T) {
 		t.Fatalf("expected turn update after round end")
 	}
 }
+
+func TestIsGameSessionOverManagement(t *testing.T) {
+	m := &Match{}
+	logger := testLogger{t}
+	dispatcher := &recordingDispatcher{}
+
+	state, _, _ := m.MatchInit(context.Background(), logger, nil, nil, nil)
+	s := state.(*MatchState)
+
+	p1 := stubPresence{id: "p1"}
+	p2 := stubPresence{id: "p2"}
+	p3 := stubPresence{id: "p3"}
+	p4 := stubPresence{id: "p4"}
+
+	m.MatchJoin(context.Background(), logger, nil, nil, dispatcher, 0, s, []runtime.Presence{p1, p2, p3, p4})
+	dispatcher.reset()
+
+	// Initial check: Should be false
+	if s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be false initially")
+	}
+
+	// --- Simulate game start ---
+	startMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
+	m.handleMessage(s, dispatcher, logger, startMsg)
+	dispatcher.reset()
+
+	// After start: Should still be false
+	if s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be false after game start")
+	}
+	if !s.Game.IsPlaying() {
+		t.Fatal("expected game to be playing")
+	}
+
+	// --- Prepare hands to make players finish (3 winners to trigger game over) ---
+	s.Game.Hands = map[string][]tienlen.Card{
+		"p1": {{Rank: 0, Suit: 0}}, // 1st finisher
+		"p2": {{Rank: 1, Suit: 0}}, // 2nd finisher
+		"p3": {{Rank: 2, Suit: 0}}, // 3rd finisher
+		"p4": {{Rank: 3, Suit: 0}}, // Loser
+	}
+	s.Game.TurnOrder = []string{"p1", "p2", "p3", "p4"} // Set explicit turn order for test
+	s.Game.CurrentIdx = 0                               // Start with p1
+
+	// p1 plays last card (1st finisher)
+	playReq1 := &pb.PlayCardRequest{CardIndices: []int32{0}}
+	data1, _ := proto.Marshal(playReq1)
+	playMsg1 := stubMatchData{op: int64(pb.OpCode_OP_PLAY_CARD), userID: "p1", data: data1}
+	m.handleMessage(s, dispatcher, logger, playMsg1)
+	dispatcher.reset()
+
+	if s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be false after 1st player finishes")
+	}
+	if !s.Game.IsPlaying() {
+		t.Fatal("expected game to still be playing after 1st player finishes")
+	}
+
+	// p2 plays last card (2nd finisher)
+	playReq2 := &pb.PlayCardRequest{CardIndices: []int32{0}}
+	data2, _ := proto.Marshal(playReq2)
+	playMsg2 := stubMatchData{op: int64(pb.OpCode_OP_PLAY_CARD), userID: "p2", data: data2}
+	m.handleMessage(s, dispatcher, logger, playMsg2)
+	dispatcher.reset()
+
+	if s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be false after 2nd player finishes")
+	}
+	if !s.Game.IsPlaying() {
+		t.Fatal("expected game to still be playing after 2nd player finishes")
+	}
+
+	// p3 plays last card (3rd finisher -> GAME OVER)
+	playReq3 := &pb.PlayCardRequest{CardIndices: []int32{0}}
+	data3, _ := proto.Marshal(playReq3)
+	playMsg3 := stubMatchData{op: int64(pb.OpCode_OP_PLAY_CARD), userID: "p3", data: data3}
+	m.handleMessage(s, dispatcher, logger, playMsg3)
+	dispatcher.reset()
+
+	// After 3rd player finishes: Should be true
+	if !s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be true after game over")
+	}
+	if s.Game.IsPlaying() {
+		t.Fatal("expected game to not be playing")
+	}
+	if s.LastGameWinnerID != "p1" {
+		t.Fatalf("expected LastGameWinnerID to be p1, got %s", s.LastGameWinnerID)
+	}
+
+	// --- Simulate starting a new game ---
+	startNewGameMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
+	m.handleMessage(s, dispatcher, logger, startNewGameMsg)
+	dispatcher.reset()
+
+	// After new game start: Should be false again
+	if s.IsGameSessionOver {
+		t.Fatal("expected IsGameSessionOver to be false after starting new game")
+	}
+	if !s.Game.IsPlaying() {
+		t.Fatal("expected game to be playing again")
+	}
+	if s.Game.Hands["p1"] == nil || len(s.Game.Hands["p1"]) != 13 {
+		t.Fatal("expected game to be reset and hands dealt")
+	}
+	if s.LastGameWinnerID != "p1" { // Last winner should persist until next game over
+		t.Fatalf("expected LastGameWinnerID to still be p1, got %s", s.LastGameWinnerID)
+	}
+}

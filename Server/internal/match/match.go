@@ -24,10 +24,12 @@ type MatchState struct {
 		SeatByUser map[string]int              `json:"seat_by_user_id"` // userID -> seat index
 		
 		// LastGameWinnerID stores the user ID of the player who won (came in 1st place) 
-		// the previous game. This is used to determine who starts the next game.
-		LastGameWinnerID string                  `json:"last_game_winner_id"` 
-	}
-	
+			// the previous game. This is used to determine who starts the next game.
+			LastGameWinnerID string                  `json:"last_game_winner_id"` 
+			// IsGameSessionOver indicates if the current game session within this match has ended.
+			// This allows the match to remain active for potential restarts without terminating.
+			IsGameSessionOver bool                    `json:"is_game_session_over"`
+		}	
 	type Match struct{}
 	
 	func (m *Match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
@@ -157,7 +159,7 @@ type MatchState struct {
 				sendError(dispatcher, senderPresence, "Match already started")
 				return
 			}
-			if err := m.startMatch(s, dispatcher); err != nil {
+			if err := m.startNewGame(s, dispatcher); err != nil {
 				sendError(dispatcher, senderPresence, err.Error())
 				return
 			}
@@ -178,42 +180,95 @@ type MatchState struct {
 			}
 			adapter.DispatchEvents(dispatcher, s.Presences, events)
 	
-			// Check for Game Over event and update LastGameWinnerID.
-			// The game engine emits GameOver when the 3rd player finishes, 
-			// providing the ID of the 1st place winner.
-			for _, event := range events {
-				if gameOverEvent, ok := event.(tienlen.GameOver); ok {
-					s.LastGameWinnerID = gameOverEvent.WinnerID
-					logger.Info("Game Over detected. LastGameWinnerID set to: %s", s.LastGameWinnerID)
-					break
+						// Check for Game Over event and update LastGameWinnerID.
+	
+						// The game engine emits GameOver when the 3rd player finishes, 
+	
+						// providing the ID of the 1st place winner.
+	
+						for _, event := range events {
+	
+							if gameOverEvent, ok := event.(tienlen.GameOver); ok {
+	
+								s.LastGameWinnerID = gameOverEvent.WinnerID
+	
+								s.IsGameSessionOver = true // Set match session as over
+	
+								logger.Info("Game Over detected. LastGameWinnerID set to: %s. IsGameSessionOver set to true.", s.LastGameWinnerID)
+	
+								break
+	
+							}
+	
+						}
+	
+			
+	
+					case pb.OpCode_OP_PASS:
+	
+						events, err := s.Game.Pass(senderID)
+	
+						if err != nil {
+	
+							sendError(dispatcher, senderPresence, err.Error())
+	
+							return
+	
+						}
+	
+						adapter.DispatchEvents(dispatcher, s.Presences, events)
+	
+			
+	
+					default:
+	
+						logger.Warn("Unhandled opcode: %d", opCode)
+	
+					}
+	
 				}
+	
+			
+	
+			// startMatch initiates a new game within the match.
+	
+			// It resets the game state, deals cards, and determines the starting player.
+	
+			func (m *Match) startNewGame(s *MatchState, dispatcher runtime.MatchDispatcher) error {
+	
+				activePlayers := m.orderedSeatedPlayers(s)
+	
+				if len(activePlayers) == 0 {
+	
+					return errors.New("no active players to start")
+	
+				}
+	
+			
+	
+				// Reinitialize game state for a new game session
+	
+				s.Game = tienlen.NewGame()
+	
+				s.IsGameSessionOver = false // Reset game session over flag
+	
+			
+	
+				rand.Seed(time.Now().UnixNano())
+	
+				events, err := s.Game.Start(activePlayers, s.OwnerID, s.LastGameWinnerID)
+	
+				if err != nil {
+	
+					return err
+	
+				}
+	
+				adapter.DispatchEvents(dispatcher, s.Presences, events)
+	
+				return nil
+	
 			}
-		case pb.OpCode_OP_PASS:
-			events, err := s.Game.Pass(senderID)
-			if err != nil {
-				sendError(dispatcher, senderPresence, err.Error())
-				return
-			}
-			adapter.DispatchEvents(dispatcher, s.Presences, events)
-		default:
-			logger.Warn("Unhandled opcode: %d", opCode)
-		}
-	}
-
-func (m *Match) startMatch(s *MatchState, dispatcher runtime.MatchDispatcher) error {
-	activePlayers := m.orderedSeatedPlayers(s)
-	if len(activePlayers) == 0 {
-		return errors.New("no active players to start")
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	events, err := s.Game.Start(activePlayers, s.OwnerID, s.LastGameWinnerID)
-	if err != nil {
-		return err
-	}
-	adapter.DispatchEvents(dispatcher, s.Presences, events)
-	return nil
-}
 
 // --- Helpers ---
 
