@@ -30,30 +30,106 @@ func IsValidSet(cards []Card) bool {
 	return false
 }
 
-// CanBeat determines if newCards can beat prevCards (same length).
-// NOTE: This is still a simplified comparison (highest card wins). Extend as needed for bombs/2s.
+// CanBeat determines if newCards can beat prevCards according to Tien Len rules.
+// Includes full "Pig Chopping" logic for Quads and Consecutive Pairs (Pine/Thong).
 func CanBeat(prevCards, newCards []Card) bool {
+	// Identify types for chopping logic
+	isNewQuad := isQuad(newCards)
+	isNew3Pine := isThreeConsecutivePairs(newCards)
+	isNew4Pine := isFourConsecutivePairs(newCards)
+	isNew5Pine := isFiveConsecutivePairs(newCards)
+
+	// Identify prev types
+	isPrevSingle2 := len(prevCards) == 1 && prevCards[0].Rank == 12
+	isPrevPair2 := len(prevCards) == 2 && allSameRank(prevCards) && prevCards[0].Rank == 12
+	isPrevQuad := isQuad(prevCards)
+	isPrev3Pine := isThreeConsecutivePairs(prevCards)
+	isPrev4Pine := isFourConsecutivePairs(prevCards)
+	isPrev5Pine := isFiveConsecutivePairs(prevCards)
+
+	// --- 5 Pairs of Consecutive Sequence (5-Pine) ---
+	// Beats: Single 2, Pair 2, Quad, 4-Pine, Smaller 5-Pine
+	if isNew5Pine {
+		if isPrevSingle2 || isPrevPair2 || isPrevQuad || isPrev4Pine || isPrev3Pine {
+			return true
+		}
+		if isPrev5Pine {
+			return getMaxPower(newCards) > getMaxPower(prevCards)
+		}
+	}
+
+	// --- 4 Pairs of Consecutive Sequence (4-Pine) ---
+	// Beats: Single 2, Pair 2, Quad, Smaller 4-Pine
+	if isNew4Pine {
+		if isPrevSingle2 || isPrevPair2 || isPrevQuad || isPrev3Pine {
+			return true
+		}
+		if isPrev4Pine {
+			return getMaxPower(newCards) > getMaxPower(prevCards)
+		}
+	}
+
+	// --- Quad (Four of a Kind) ---
+	// Beats: Single 2, Pair 2, Smaller Quad, 3-Pine
+	if isNewQuad {
+		if isPrevSingle2 || isPrevPair2 || isPrev3Pine {
+			return true
+		}
+		if isPrevQuad {
+			return newCards[0].Rank > prevCards[0].Rank
+		}
+	}
+
+	// --- 3 Pairs of Consecutive Sequence (3-Pine) ---
+	// Beats: Single 2, Smaller 3-Pine
+	if isNew3Pine {
+		if isPrevSingle2 {
+			return true
+		}
+		if isPrev3Pine {
+			return getMaxPower(newCards) > getMaxPower(prevCards)
+		}
+	}
+
+	// --- Standard Rules ---
+	// 1. Must be same length
 	if len(prevCards) != len(newCards) {
 		return false
 	}
 
-	maxPrev := int32(-1)
-	for _, c := range prevCards {
+	// 2. Must be same type (e.g. Pair vs Pair, Triple vs Triple)
+	// (Validation of 'isType' is assumed handled by IsValidSet before calling CanBeat, 
+	// but we implicitly rely on structure similarity here).
+	
+	// 3. Compare highest card power
+	return getMaxPower(newCards) > getMaxPower(prevCards)
+}
+
+func isQuad(cards []Card) bool {
+	return len(cards) == 4 && allSameRank(cards)
+}
+
+func isThreeConsecutivePairs(cards []Card) bool {
+	return len(cards) == 6 && isConsecutivePairs(cards)
+}
+
+func isFourConsecutivePairs(cards []Card) bool {
+	return len(cards) == 8 && isConsecutivePairs(cards)
+}
+
+func isFiveConsecutivePairs(cards []Card) bool {
+	return len(cards) == 10 && isConsecutivePairs(cards)
+}
+
+func getMaxPower(cards []Card) int32 {
+	maxP := int32(-1)
+	for _, c := range cards {
 		p := cardPower(c)
-		if p > maxPrev {
-			maxPrev = p
+		if p > maxP {
+			maxP = p
 		}
 	}
-
-	maxNew := int32(-1)
-	for _, c := range newCards {
-		p := cardPower(c)
-		if p > maxNew {
-			maxNew = p
-		}
-	}
-
-	return maxNew > maxPrev
+	return maxP
 }
 
 func allSameRank(cards []Card) bool {
