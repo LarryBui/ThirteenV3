@@ -251,9 +251,9 @@ func (g *Game) PlayCards(playerID string, indices []int) ([]Event, error) {
 		// Emit PlayerFinished event with their rank (1st, 2nd, 3rd)
 		events = append(events, PlayerFinished{PlayerID: playerID, Rank: len(g.Winners)})
 
-		// If this is the third player to finish, the game ends.
-		// We stop at 3 winners because with 4 players, the last one is the loser by default.
-		if len(g.Winners) == 3 {
+		// If this is the (N-1)th player to finish, the game ends.
+		// We stop when only one player remains (the loser).
+		if len(g.Winners) == len(g.TurnOrder)-1 {
 			g.isPlaying = false
 			// The overall game winner is the 1st place player
 			events = append(events, GameOver{WinnerID: g.Winners[0]})
