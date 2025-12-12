@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TienLen.Unity.Domain.ValueObjects;
 using TienLen.Unity.Domain.Aggregates;
+using TienLen.Unity.Domain.Enums;
 
 namespace TienLen.Unity.Domain.Aggregates
 {
@@ -18,6 +19,7 @@ namespace TienLen.Unity.Domain.Aggregates
         public event Action<string> OnGameOver; // New event (winnerId)
         public event Action<IReadOnlyList<string>> OnPlayerIdsUpdated; // New event for player list
         public event Action<IReadOnlyList<string>> OnSeatsUpdated; // New event for seats (seat index => userId)
+        public event Action OnGameStarted;
 
         // Internal State
         private Hand _playerHand;
@@ -117,6 +119,21 @@ namespace TienLen.Unity.Domain.Aggregates
                 _isPlaying = isPlaying;
                 OnIsPlayingChanged?.Invoke(_isPlaying);
             }
+        }
+
+        public void ApplyGameStart(IEnumerable<(Rank Rank, Suit Suit)> cards, string ownerId, IReadOnlyList<string> playerIds)
+        {
+            var hand = new Hand();
+            foreach (var (rank, suit) in cards)
+            {
+                hand.AddCard(new Card(rank, suit));
+            }
+
+            SetMatchOwner(ownerId);
+            SetPlayerIds(playerIds);
+            SetIsPlaying(true);
+            OnGameStarted?.Invoke();
+            SetPlayerHand(hand);
         }
 
         public void SetGameOver(string winnerId) // New method

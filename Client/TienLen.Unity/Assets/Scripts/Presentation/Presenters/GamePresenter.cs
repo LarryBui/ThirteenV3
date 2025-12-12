@@ -79,6 +79,7 @@ namespace TienLen.Unity.Presentation.Presenters
             _gameModel.OnMatchIdUpdated += OnGameModelMatchIdUpdated;
             _gameModel.OnMatchOwnerChanged += OnGameModelMatchOwnerChanged;
             _gameModel.OnIsPlayingChanged += OnGameModelIsPlayingChanged; // New subscription
+            _gameModel.OnGameStarted += OnGameModelGameStarted;
             _gameModel.OnGameOver += OnGameModelGameOver;             // New subscription
             _gameModel.OnPlayerIdsUpdated += OnGameModelPlayerIdsUpdated; // New subscription
             _gameModel.OnSeatsUpdated += OnGameModelSeatsUpdated;
@@ -259,26 +260,27 @@ namespace TienLen.Unity.Presentation.Presenters
         
         private void OnGameModelIsPlayingChanged(bool isPlaying)
         {
-            return;
             _logger.LogInformation($"GameModel IsPlaying Changed: {isPlaying}");
-            // Based on isPlaying, we might want to enable/disable Play/Skip buttons or show/hide hand
-            PlayerHandView.gameObject.SetActive(isPlaying);
-            PlayButton.gameObject.SetActive(isPlaying);
-            SkipButton.gameObject.SetActive(isPlaying);
+        }
 
-            if (isPlaying && GameCardDealer != null)
+        private void OnGameModelGameStarted()
+        {
+            _logger.LogInformation("GameModel Game Started event received.");
+            _waitingForDealAnimation = true;
+            _dealtCardsCount = 0;
+
+            PlayerHandView?.RenderHand(new List<Card>());
+            PlayerHandView?.gameObject.SetActive(true);
+            PlayButton?.gameObject.SetActive(true);
+            SkipButton?.gameObject.SetActive(true);
+
+            if (GameCardDealer != null)
             {
-                _waitingForDealAnimation = true;
-                _dealtCardsCount = 0; // Reset counter
-                // Clear the hand view immediately so we don't see old/static cards while dealing happens
-                if (PlayerHandView != null) 
-                    PlayerHandView.RenderHand(new List<Card>()); 
-                
                 GameCardDealer.DealCards();
             }
 
-            // Update start game button visibility when playing state changes
             UpdateStartGameButtonVisibility();
+            if (StatusText) StatusText.text = "Game Started!";
         }
 
         private void OnDealingAnimationComplete()
@@ -574,6 +576,7 @@ namespace TienLen.Unity.Presentation.Presenters
                 _gameModel.OnMatchIdUpdated -= OnGameModelMatchIdUpdated;
                 _gameModel.OnMatchOwnerChanged -= OnGameModelMatchOwnerChanged;
                 _gameModel.OnIsPlayingChanged -= OnGameModelIsPlayingChanged; // New unsubscription
+                _gameModel.OnGameStarted -= OnGameModelGameStarted;
                 _gameModel.OnGameOver -= OnGameModelGameOver;             // New unsubscription
                 _gameModel.OnPlayerIdsUpdated -= OnGameModelPlayerIdsUpdated; // New unsubscription
                 _gameModel.OnSeatsUpdated -= OnGameModelSeatsUpdated;

@@ -85,15 +85,8 @@ namespace TienLen.Unity.Infrastructure.Network
         private void HandleGameStart(byte[] payload)
         {
             var startPacket = MatchStartPacket.Parser.ParseFrom(payload);
-            var domainHand = new Hand();
-            foreach (var protoCard in startPacket.Hand)
-            {
-                domainHand.AddCard(new DomainClasses.Card((Domain.Enums.Rank)protoCard.Rank, (Domain.Enums.Suit)protoCard.Suit));
-            }
-            _gameModel.SetPlayerHand(domainHand);
-            _gameModel.SetMatchOwner(startPacket.OwnerId);
-            _gameModel.SetPlayerIds(startPacket.PlayerIds.ToList());
-            _gameModel.SetIsPlaying(true);
+            var cards = startPacket.Hand.Select(c => ((Domain.Enums.Rank)c.Rank, (Domain.Enums.Suit)c.Suit)).ToList();
+            _gameModel.ApplyGameStart(cards, startPacket.OwnerId, startPacket.PlayerIds.ToList());
         }
 
         private void HandleTurnUpdate(byte[] payload)
