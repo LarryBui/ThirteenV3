@@ -26,9 +26,6 @@ type MatchState struct {
 	// LastGameWinnerID stores the user ID of the player who won (came in 1st place)
 	// the previous game. This is used to determine who starts the next game.
 	LastGameWinnerID string `json:"last_game_winner_id"`
-	// IsGameSessionOver indicates if the current game session within this match has ended.
-	// This allows the match to remain active for potential restarts without terminating.
-	IsGameSessionOver bool `json:"is_game_session_over"`
 }
 type Match struct{}
 
@@ -175,33 +172,17 @@ func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher,
 			indices = append(indices, int(idx))
 		}
 		events, err := s.Game.PlayCards(senderID, indices)
+
+		// Update last winner after each play
+		if len(s.Game.Winners) != 0 {
+			s.LastGameWinnerID = s.Game.Winners[0]
+		}
+
 		if err != nil {
 			sendError(dispatcher, senderPresence, err.Error())
 			return
 		}
 		adapter.DispatchEvents(dispatcher, s.Presences, events)
-
-		// Check for Game Over event and update LastGameWinnerID.
-
-		// The game engine emits GameOver when the 3rd player finishes,
-
-		// providing the ID of the 1st place winner.
-
-		for _, event := range events {
-
-			if gameOverEvent, ok := event.(tienlen.GameOver); ok {
-
-				s.LastGameWinnerID = gameOverEvent.WinnerID
-
-				s.IsGameSessionOver = true // Set match session as over
-
-				logger.Info("Game Over detected. LastGameWinnerID set to: %s. IsGameSessionOver set to true.", s.LastGameWinnerID)
-
-				break
-
-			}
-
-		}
 
 	case pb.OpCode_OP_PASS:
 
@@ -242,8 +223,6 @@ func (m *Match) startNewGame(s *MatchState, dispatcher runtime.MatchDispatcher) 
 	// Reinitialize game state for a new game session
 
 	s.Game = tienlen.NewGame()
-
-	s.IsGameSessionOver = false // Reset game session over flag
 
 	rand.Seed(time.Now().UnixNano())
 

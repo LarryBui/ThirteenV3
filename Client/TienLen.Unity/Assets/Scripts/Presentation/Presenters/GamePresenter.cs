@@ -259,6 +259,7 @@ namespace TienLen.Unity.Presentation.Presenters
         
         private void OnGameModelIsPlayingChanged(bool isPlaying)
         {
+            return;
             _logger.LogInformation($"GameModel IsPlaying Changed: {isPlaying}");
             // Based on isPlaying, we might want to enable/disable Play/Skip buttons or show/hide hand
             PlayerHandView.gameObject.SetActive(isPlaying);
@@ -302,23 +303,9 @@ namespace TienLen.Unity.Presentation.Presenters
         {
             _logger.LogInformation($"Game Over! Winner: {winnerId}");
             string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
-            if (StatusText != null)
-            {
-                if (!string.IsNullOrEmpty(winnerId) && winnerId == localUserId)
-                {
-                    StatusText.text = "You Win!";
-                }
-                else if (!string.IsNullOrEmpty(winnerId))
-                {
-                    StatusText.text = $"{GameSeatManager.GetPlayerName(winnerId)} Wins!";
-                }
-                else
-                {
-                    StatusText.text = "Game Over!"; // No specific winner, e.g., if match terminated early
-                }
-            }
+            
             // Ensure Start Game button is visible for the owner so they can restart
-            UpdateStartGameButtonVisibility();
+            // UpdateStartGameButtonVisibility();
         }
 
         private void OnGameModelPlayerIdsUpdated(IReadOnlyList<string> playerIds)

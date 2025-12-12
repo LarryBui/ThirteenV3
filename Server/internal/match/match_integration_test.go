@@ -195,7 +195,7 @@ func TestMatchPlayAndPassFlow(t *testing.T) {
 	}
 }
 
-func TestIsGameSessionOverManagement(t *testing.T) {
+func TestGameOverManagement(t *testing.T) {
 	m := &Match{}
 	logger := testLogger{t}
 	dispatcher := &recordingDispatcher{}
@@ -211,20 +211,11 @@ func TestIsGameSessionOverManagement(t *testing.T) {
 	m.MatchJoin(context.Background(), logger, nil, nil, dispatcher, 0, s, []runtime.Presence{p1, p2, p3, p4})
 	dispatcher.reset()
 
-	// Initial check: Should be false
-	if s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be false initially")
-	}
-
 	// --- Simulate game start ---
 	startMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
 	m.handleMessage(s, dispatcher, logger, startMsg)
 	dispatcher.reset()
 
-	// After start: Should still be false
-	if s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be false after game start")
-	}
 	if !s.Game.IsPlaying() {
 		t.Fatal("expected game to be playing")
 	}
@@ -246,9 +237,6 @@ func TestIsGameSessionOverManagement(t *testing.T) {
 	m.handleMessage(s, dispatcher, logger, playMsg1)
 	dispatcher.reset()
 
-	if s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be false after 1st player finishes")
-	}
 	if !s.Game.IsPlaying() {
 		t.Fatal("expected game to still be playing after 1st player finishes")
 	}
@@ -260,9 +248,6 @@ func TestIsGameSessionOverManagement(t *testing.T) {
 	m.handleMessage(s, dispatcher, logger, playMsg2)
 	dispatcher.reset()
 
-	if s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be false after 2nd player finishes")
-	}
 	if !s.Game.IsPlaying() {
 		t.Fatal("expected game to still be playing after 2nd player finishes")
 	}
@@ -274,10 +259,6 @@ func TestIsGameSessionOverManagement(t *testing.T) {
 	m.handleMessage(s, dispatcher, logger, playMsg3)
 	dispatcher.reset()
 
-	// After 3rd player finishes: Should be true
-	if !s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be true after game over")
-	}
 	if s.Game.IsPlaying() {
 		t.Fatal("expected game to not be playing")
 	}
@@ -290,10 +271,6 @@ func TestIsGameSessionOverManagement(t *testing.T) {
 	m.handleMessage(s, dispatcher, logger, startNewGameMsg)
 	dispatcher.reset()
 
-	// After new game start: Should be false again
-	if s.IsGameSessionOver {
-		t.Fatal("expected IsGameSessionOver to be false after starting new game")
-	}
 	if !s.Game.IsPlaying() {
 		t.Fatal("expected game to be playing again")
 	}
