@@ -55,6 +55,7 @@ namespace TienLen.Unity.Presentation.Presenters
         private GameModel _gameModel; // New
         
         private bool _waitingForDealAnimation = false;
+        private int _dealtCardsCount = 0;
 
         [Inject]
         public void Construct(ILogger<GamePresenter> logger, IGameNetwork network, GameSession gameSession, GameModel gameModel)
@@ -86,6 +87,7 @@ namespace TienLen.Unity.Presentation.Presenters
             if (GameCardDealer != null)
             {
                 GameCardDealer.OnDealComplete.AddListener(OnDealingAnimationComplete);
+                GameCardDealer.OnSouthCardArrived += OnSouthCardArrivedHandler;
             }
             
             // Unsubscribe from Network Events (NakamaGameNetwork now updates GameModel directly)
@@ -266,6 +268,7 @@ namespace TienLen.Unity.Presentation.Presenters
             if (isPlaying && GameCardDealer != null)
             {
                 _waitingForDealAnimation = true;
+                _dealtCardsCount = 0; // Reset counter
                 // Clear the hand view immediately so we don't see old/static cards while dealing happens
                 if (PlayerHandView != null) 
                     PlayerHandView.RenderHand(new List<Card>()); 
@@ -279,13 +282,19 @@ namespace TienLen.Unity.Presentation.Presenters
 
         private void OnDealingAnimationComplete()
         {
-            _logger.LogInformation("Dealing animation complete. Rendering initial hand.");
+            _logger.LogInformation("Dealing animation complete.");
             _waitingForDealAnimation = false;
+        }
+
+        private void OnSouthCardArrivedHandler()
+        {
+            if (_gameModel == null || _gameModel.PlayerHand == null || PlayerHandView == null) return;
             
-            if (_gameModel != null && _gameModel.PlayerHand != null && PlayerHandView != null)
+            if (_dealtCardsCount < _gameModel.PlayerHand.Count)
             {
-                // Trigger the special initial render (animated appearance)
-                PlayerHandView.RenderHandInitial(_gameModel.PlayerHand).Forget();
+                var card = _gameModel.PlayerHand[_dealtCardsCount];
+                PlayerHandView.AddCard(card);
+                _dealtCardsCount++;
             }
         }
 

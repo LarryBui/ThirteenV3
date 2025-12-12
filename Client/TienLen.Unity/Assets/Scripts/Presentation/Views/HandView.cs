@@ -26,6 +26,13 @@ namespace TienLen.Unity.Presentation.Views
             return selected;
         }
 
+        public void AddCard(Card card)
+        {
+            var go = Instantiate(CardPrefab, CardContainer);
+            go.Initialize(card);
+            _activeCards.Add(go);
+        }
+
         public void RenderHand(IEnumerable<Card> cards)
         {
             // Clear existing immediately

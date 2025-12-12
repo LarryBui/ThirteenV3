@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -14,16 +15,18 @@ namespace TienLen.Unity.Presentation.Views
         [SerializeField] private RectTransform _cardContainer;
         [Tooltip("Distance from the screen border to stop the card")]
         [SerializeField] private float _borderPadding = 200f;
-        [SerializeField] private float _dealDuration = 0.3f;
-        [SerializeField] private float _dealInterval = 0.01f;
+        [SerializeField] private float _dealDuration = 0.1f;
+        [SerializeField] private float _dealInterval = 0.005f;
 
         [Header("Events")]
         public UnityEvent OnDealComplete;
+        public event Action OnSouthCardArrived;
 
         [Header("Debug")]
         [SerializeField] private bool _simulateDeal = false;
 
         private RectTransform _canvasRect;
+        private Sequence _dealingSequence;
 
         private void Awake()
         {
@@ -47,15 +50,32 @@ namespace TienLen.Unity.Presentation.Views
             }
         }
 
+        private void OnDestroy()
+        {
+            // Kill sequence if object is destroyed to prevent errors
+            if (_dealingSequence != null)
+            {
+                _dealingSequence.Kill();
+            }
+        }
+
         public void DealCards()
         {
             if (_cardPrefab == null || _canvasRect == null) return;
             
-            StartCoroutine(DealRoutine());
+            // Kill existing sequence if running
+            if (_dealingSequence != null && _dealingSequence.IsActive())
+            {
+                _dealingSequence.Kill();
+            }
+
+            StartDealSequence();
         }
 
-        private IEnumerator DealRoutine()
+        private void StartDealSequence()
         {
+            _dealingSequence = DOTween.Sequence();
+
             // Order: North, East, South, West
             Vector2[] targets = new Vector2[]
             {
@@ -65,22 +85,25 @@ namespace TienLen.Unity.Presentation.Views
                 GetWestPosition()
             };
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 13; i++)
             {
-                foreach (var targetPos in targets)
+                for (int j = 0; j < targets.Length; j++)
                 {
-                    SpawnAndAnimateTo(targetPos);
-                    yield return new WaitForSeconds(_dealInterval);
+                    // Capture variables for the callback closure
+                    Vector2 targetPos = targets[j];
+                    bool isSouth = (j == 2);
+
+                    _dealingSequence.AppendCallback(() => SpawnAndAnimateTo(targetPos, isSouth));
+                    _dealingSequence.AppendInterval(_dealInterval);
                 }
             }
 
-            // Wait for the last card's animation to finish
-            yield return new WaitForSeconds(_dealDuration);
-            
-            OnDealComplete?.Invoke();
+            // Wait for the last card's flight to finish
+            _dealingSequence.AppendInterval(_dealDuration);
+            _dealingSequence.AppendCallback(() => OnDealComplete?.Invoke());
         }
 
-        private void SpawnAndAnimateTo(Vector2 targetLocalPosition)
+        private void SpawnAndAnimateTo(Vector2 targetLocalPosition, bool isSouth = false)
         {
             // Determine spawn parent
             Transform parent = _cardContainer != null ? _cardContainer : transform;
@@ -93,25 +116,17 @@ namespace TienLen.Unity.Presentation.Views
             RectTransform cardRect = cardObj.GetComponent<RectTransform>();
             if (cardRect != null)
             {
-                // If the card container is the same scope as the calculated targets (Canvas scope),
-                // we can use DOAnchorPos. 
-                // However, targetLocalPosition is calculated based on the CANVAS size/center.
-                // If 'parent' is NOT the canvas (e.g. a smaller panel), this might be offset.
-                // For safety in this specific task (dealing to screen borders), 
-                // we assume the card container is a full-screen panel or centered equivalent.
-                
-                cardRect.anchoredPosition = Vector2.zero; // Reset to center relative to parent if parent is centered
+                cardRect.anchoredPosition = Vector2.zero; // Reset to center relative to parent
 
                 cardRect.DOAnchorPos(targetLocalPosition, _dealDuration)
                     .SetEase(Ease.OutQuad)
-                    .OnComplete(() => cardObj.SetActive(false));
-
-                // Optional: Rotate the card to face the player? 
-                // The prompt didn't ask, but usually:
-                // North: 0/180, East: 90, South: 0, West: -90
+                    .OnComplete(() => 
+                    {
+                        cardObj.SetActive(false);
+                        if (isSouth) OnSouthCardArrived?.Invoke();
+                    });
             }
             
-            // If the prefab has a CardView, we might want to show the back
             var view = cardObj.GetComponent<CardView>();
             if (view != null)
             {
