@@ -48,8 +48,8 @@ namespace TienLen.Unity.Infrastructure.Network
                 {
                     switch (op)
                     {
-                        case OpCode.OpMatchStart:
-                            HandleMatchStart(payload);
+                        case OpCode.OpGameStart:
+                            HandleGameStart(payload);
                             break;
                         case OpCode.OpTurnUpdate:
                             HandleTurnUpdate(payload);
@@ -82,7 +82,7 @@ namespace TienLen.Unity.Infrastructure.Network
             });
         }
 
-        private void HandleMatchStart(byte[] payload)
+        private void HandleGameStart(byte[] payload)
         {
             var startPacket = MatchStartPacket.Parser.ParseFrom(payload);
             var domainHand = new Hand();

@@ -7,11 +7,11 @@ option csharp_namespace = "TienLen.Gen";
 // 1. Operation Codes (What is happening?)
 enum OpCode {
   OP_UNKNOWN = 0;
-  OP_MATCH_START = 1; // Server -> Client (Deal cards)
+  OP_GAME_START = 1; // Server -> Client (Deal cards)
   OP_PLAY_CARD = 2;   // Client -> Server (Player move)
   OP_TURN_UPDATE = 3; // Server -> Client (Next player turn)
   OP_ERROR = 4;       // Server -> Client (Invalid move)
-  OP_MATCH_START_REQUEST = 5; // Client -> Server (Host initiates game start)
+  OP_GAME_START_REQUEST = 5; // Client -> Server (Host initiates game start)
   OP_OWNER_UPDATE = 6;      // Server -> Client (Notify new owner)
   OP_GAME_OVER = 7;      // Server -> Client (Match finished - someone eliminated)
   OP_MATCH_STATE = 8;    // Server -> Client (Sync state for late joiner)

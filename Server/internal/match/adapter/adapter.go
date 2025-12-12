@@ -74,7 +74,7 @@ func sendMatchStarted(dispatcher runtime.MatchDispatcher, presences map[string]r
 		if err != nil {
 			continue
 		}
-		dispatcher.BroadcastMessage(int64(pb.OpCode_OP_MATCH_START), data, []runtime.Presence{presence}, nil, true)
+		dispatcher.BroadcastMessage(int64(pb.OpCode_OP_GAME_START), data, []runtime.Presence{presence}, nil, true)
 	}
 }
 

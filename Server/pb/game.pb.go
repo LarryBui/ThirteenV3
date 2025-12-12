@@ -2,17 +2,16 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.33.2
-// source: Schema/game.proto
+// source: game.proto
 
 package pb
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -26,29 +25,29 @@ const (
 type OpCode int32
 
 const (
-	OpCode_OP_UNKNOWN             OpCode = 0
-	OpCode_OP_MATCH_START         OpCode = 1  // Server -> Client (Deal cards)
-	OpCode_OP_PLAY_CARD           OpCode = 2  // Client -> Server (Player move)
-	OpCode_OP_TURN_UPDATE         OpCode = 3  // Server -> Client (Next player turn)
-	OpCode_OP_ERROR               OpCode = 4  // Server -> Client (Invalid move)
-	OpCode_OP_MATCH_START_REQUEST OpCode = 5  // Client -> Server (Host initiates game start)
-	OpCode_OP_OWNER_UPDATE        OpCode = 6  // Server -> Client (Notify new owner)
-	OpCode_OP_GAME_OVER           OpCode = 7  // Server -> Client (Match finished - someone eliminated)
-	OpCode_OP_MATCH_STATE         OpCode = 8  // Server -> Client (Sync state for late joiner)
-	OpCode_OP_HAND_UPDATE         OpCode = 9  // Server -> Client (Update player's hand)
-	OpCode_OP_PASS                OpCode = 10 // Client -> Server (Player passes this round)
-	OpCode_OP_ROUND_END           OpCode = 11 // Server -> Client (Round finished, table cleared)
+	OpCode_OP_UNKNOWN            OpCode = 0
+	OpCode_OP_GAME_START         OpCode = 1  // Server -> Client (Deal cards)
+	OpCode_OP_PLAY_CARD          OpCode = 2  // Client -> Server (Player move)
+	OpCode_OP_TURN_UPDATE        OpCode = 3  // Server -> Client (Next player turn)
+	OpCode_OP_ERROR              OpCode = 4  // Server -> Client (Invalid move)
+	OpCode_OP_GAME_START_REQUEST OpCode = 5  // Client -> Server (Host initiates game start)
+	OpCode_OP_OWNER_UPDATE       OpCode = 6  // Server -> Client (Notify new owner)
+	OpCode_OP_GAME_OVER          OpCode = 7  // Server -> Client (Match finished - someone eliminated)
+	OpCode_OP_MATCH_STATE        OpCode = 8  // Server -> Client (Sync state for late joiner)
+	OpCode_OP_HAND_UPDATE        OpCode = 9  // Server -> Client (Update player's hand)
+	OpCode_OP_PASS               OpCode = 10 // Client -> Server (Player passes this round)
+	OpCode_OP_ROUND_END          OpCode = 11 // Server -> Client (Round finished, table cleared)
 )
 
 // Enum value maps for OpCode.
 var (
 	OpCode_name = map[int32]string{
 		0:  "OP_UNKNOWN",
-		1:  "OP_MATCH_START",
+		1:  "OP_GAME_START",
 		2:  "OP_PLAY_CARD",
 		3:  "OP_TURN_UPDATE",
 		4:  "OP_ERROR",
-		5:  "OP_MATCH_START_REQUEST",
+		5:  "OP_GAME_START_REQUEST",
 		6:  "OP_OWNER_UPDATE",
 		7:  "OP_GAME_OVER",
 		8:  "OP_MATCH_STATE",
@@ -57,18 +56,18 @@ var (
 		11: "OP_ROUND_END",
 	}
 	OpCode_value = map[string]int32{
-		"OP_UNKNOWN":             0,
-		"OP_MATCH_START":         1,
-		"OP_PLAY_CARD":           2,
-		"OP_TURN_UPDATE":         3,
-		"OP_ERROR":               4,
-		"OP_MATCH_START_REQUEST": 5,
-		"OP_OWNER_UPDATE":        6,
-		"OP_GAME_OVER":           7,
-		"OP_MATCH_STATE":         8,
-		"OP_HAND_UPDATE":         9,
-		"OP_PASS":                10,
-		"OP_ROUND_END":           11,
+		"OP_UNKNOWN":            0,
+		"OP_GAME_START":         1,
+		"OP_PLAY_CARD":          2,
+		"OP_TURN_UPDATE":        3,
+		"OP_ERROR":              4,
+		"OP_GAME_START_REQUEST": 5,
+		"OP_OWNER_UPDATE":       6,
+		"OP_GAME_OVER":          7,
+		"OP_MATCH_STATE":        8,
+		"OP_HAND_UPDATE":        9,
+		"OP_PASS":               10,
+		"OP_ROUND_END":          11,
 	}
 )
 
@@ -83,11 +82,11 @@ func (x OpCode) String() string {
 }
 
 func (OpCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_Schema_game_proto_enumTypes[0].Descriptor()
+	return file_game_proto_enumTypes[0].Descriptor()
 }
 
 func (OpCode) Type() protoreflect.EnumType {
-	return &file_Schema_game_proto_enumTypes[0]
+	return &file_game_proto_enumTypes[0]
 }
 
 func (x OpCode) Number() protoreflect.EnumNumber {
@@ -96,7 +95,7 @@ func (x OpCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OpCode.Descriptor instead.
 func (OpCode) EnumDescriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{0}
+	return file_game_proto_rawDescGZIP(), []int{0}
 }
 
 // 2. Data Structures
@@ -110,7 +109,7 @@ type Card struct {
 
 func (x *Card) Reset() {
 	*x = Card{}
-	mi := &file_Schema_game_proto_msgTypes[0]
+	mi := &file_game_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +121,7 @@ func (x *Card) String() string {
 func (*Card) ProtoMessage() {}
 
 func (x *Card) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[0]
+	mi := &file_game_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +134,7 @@ func (x *Card) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Card.ProtoReflect.Descriptor instead.
 func (*Card) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{0}
+	return file_game_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Card) GetSuit() int32 {
@@ -161,7 +160,7 @@ type HandUpdatePacket struct {
 
 func (x *HandUpdatePacket) Reset() {
 	*x = HandUpdatePacket{}
-	mi := &file_Schema_game_proto_msgTypes[1]
+	mi := &file_game_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +172,7 @@ func (x *HandUpdatePacket) String() string {
 func (*HandUpdatePacket) ProtoMessage() {}
 
 func (x *HandUpdatePacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[1]
+	mi := &file_game_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +185,7 @@ func (x *HandUpdatePacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandUpdatePacket.ProtoReflect.Descriptor instead.
 func (*HandUpdatePacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{1}
+	return file_game_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *HandUpdatePacket) GetHand() []*Card {
@@ -207,7 +206,7 @@ type MatchStartPacket struct {
 
 func (x *MatchStartPacket) Reset() {
 	*x = MatchStartPacket{}
-	mi := &file_Schema_game_proto_msgTypes[2]
+	mi := &file_game_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +218,7 @@ func (x *MatchStartPacket) String() string {
 func (*MatchStartPacket) ProtoMessage() {}
 
 func (x *MatchStartPacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[2]
+	mi := &file_game_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +231,7 @@ func (x *MatchStartPacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchStartPacket.ProtoReflect.Descriptor instead.
 func (*MatchStartPacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{2}
+	return file_game_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MatchStartPacket) GetHand() []*Card {
@@ -265,7 +264,7 @@ type GameOverPacket struct {
 
 func (x *GameOverPacket) Reset() {
 	*x = GameOverPacket{}
-	mi := &file_Schema_game_proto_msgTypes[3]
+	mi := &file_game_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -277,7 +276,7 @@ func (x *GameOverPacket) String() string {
 func (*GameOverPacket) ProtoMessage() {}
 
 func (x *GameOverPacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[3]
+	mi := &file_game_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -290,7 +289,7 @@ func (x *GameOverPacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameOverPacket.ProtoReflect.Descriptor instead.
 func (*GameOverPacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{3}
+	return file_game_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GameOverPacket) GetWinnerId() string {
@@ -309,7 +308,7 @@ type RoundEndPacket struct {
 
 func (x *RoundEndPacket) Reset() {
 	*x = RoundEndPacket{}
-	mi := &file_Schema_game_proto_msgTypes[4]
+	mi := &file_game_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +320,7 @@ func (x *RoundEndPacket) String() string {
 func (*RoundEndPacket) ProtoMessage() {}
 
 func (x *RoundEndPacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[4]
+	mi := &file_game_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +333,7 @@ func (x *RoundEndPacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundEndPacket.ProtoReflect.Descriptor instead.
 func (*RoundEndPacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{4}
+	return file_game_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RoundEndPacket) GetWinnerId() string {
@@ -357,7 +356,7 @@ type MatchStatePacket struct {
 
 func (x *MatchStatePacket) Reset() {
 	*x = MatchStatePacket{}
-	mi := &file_Schema_game_proto_msgTypes[5]
+	mi := &file_game_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +368,7 @@ func (x *MatchStatePacket) String() string {
 func (*MatchStatePacket) ProtoMessage() {}
 
 func (x *MatchStatePacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[5]
+	mi := &file_game_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +381,7 @@ func (x *MatchStatePacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchStatePacket.ProtoReflect.Descriptor instead.
 func (*MatchStatePacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{5}
+	return file_game_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MatchStatePacket) GetIsPlaying() bool {
@@ -429,7 +428,7 @@ type PlayCardRequest struct {
 
 func (x *PlayCardRequest) Reset() {
 	*x = PlayCardRequest{}
-	mi := &file_Schema_game_proto_msgTypes[6]
+	mi := &file_game_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -441,7 +440,7 @@ func (x *PlayCardRequest) String() string {
 func (*PlayCardRequest) ProtoMessage() {}
 
 func (x *PlayCardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[6]
+	mi := &file_game_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -454,7 +453,7 @@ func (x *PlayCardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayCardRequest.ProtoReflect.Descriptor instead.
 func (*PlayCardRequest) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{6}
+	return file_game_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlayCardRequest) GetCardIndices() []int32 {
@@ -475,7 +474,7 @@ type TurnUpdatePacket struct {
 
 func (x *TurnUpdatePacket) Reset() {
 	*x = TurnUpdatePacket{}
-	mi := &file_Schema_game_proto_msgTypes[7]
+	mi := &file_game_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +486,7 @@ func (x *TurnUpdatePacket) String() string {
 func (*TurnUpdatePacket) ProtoMessage() {}
 
 func (x *TurnUpdatePacket) ProtoReflect() protoreflect.Message {
-	mi := &file_Schema_game_proto_msgTypes[7]
+	mi := &file_game_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +499,7 @@ func (x *TurnUpdatePacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TurnUpdatePacket.ProtoReflect.Descriptor instead.
 func (*TurnUpdatePacket) Descriptor() ([]byte, []int) {
-	return file_Schema_game_proto_rawDescGZIP(), []int{7}
+	return file_game_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *TurnUpdatePacket) GetActivePlayerId() string {
@@ -524,11 +523,12 @@ func (x *TurnUpdatePacket) GetSecondsRemaining() int32 {
 	return 0
 }
 
-var File_Schema_game_proto protoreflect.FileDescriptor
+var File_game_proto protoreflect.FileDescriptor
 
-const file_Schema_game_proto_rawDesc = "" +
+const file_game_proto_rawDesc = "" +
 	"\n" +
-	"\x11Schema/game.proto\x12\x03api\".\n" +
+	"\n" +
+	"game.proto\x12\x03api\".\n" +
 	"\x04Card\x12\x12\n" +
 	"\x04suit\x18\x01 \x01(\x05R\x04suit\x12\x12\n" +
 	"\x04rank\x18\x02 \x01(\x05R\x04rank\"1\n" +
@@ -556,15 +556,15 @@ const file_Schema_game_proto_rawDesc = "" +
 	"\x10TurnUpdatePacket\x12(\n" +
 	"\x10active_player_id\x18\x01 \x01(\tR\x0eactivePlayerId\x125\n" +
 	"\x11last_played_cards\x18\x02 \x03(\v2\t.api.CardR\x0flastPlayedCards\x12+\n" +
-	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*\xea\x01\n" +
+	"\x11seconds_remaining\x18\x03 \x01(\x05R\x10secondsRemaining*\xe8\x01\n" +
 	"\x06OpCode\x12\x0e\n" +
 	"\n" +
-	"OP_UNKNOWN\x10\x00\x12\x12\n" +
-	"\x0eOP_MATCH_START\x10\x01\x12\x10\n" +
+	"OP_UNKNOWN\x10\x00\x12\x11\n" +
+	"\rOP_GAME_START\x10\x01\x12\x10\n" +
 	"\fOP_PLAY_CARD\x10\x02\x12\x12\n" +
 	"\x0eOP_TURN_UPDATE\x10\x03\x12\f\n" +
-	"\bOP_ERROR\x10\x04\x12\x1a\n" +
-	"\x16OP_MATCH_START_REQUEST\x10\x05\x12\x13\n" +
+	"\bOP_ERROR\x10\x04\x12\x19\n" +
+	"\x15OP_GAME_START_REQUEST\x10\x05\x12\x13\n" +
 	"\x0fOP_OWNER_UPDATE\x10\x06\x12\x10\n" +
 	"\fOP_GAME_OVER\x10\a\x12\x12\n" +
 	"\x0eOP_MATCH_STATE\x10\b\x12\x12\n" +
@@ -574,20 +574,20 @@ const file_Schema_game_proto_rawDesc = "" +
 	"\fOP_ROUND_END\x10\vB\x14Z\x04./pb\xaa\x02\vTienLen.Genb\x06proto3"
 
 var (
-	file_Schema_game_proto_rawDescOnce sync.Once
-	file_Schema_game_proto_rawDescData []byte
+	file_game_proto_rawDescOnce sync.Once
+	file_game_proto_rawDescData []byte
 )
 
-func file_Schema_game_proto_rawDescGZIP() []byte {
-	file_Schema_game_proto_rawDescOnce.Do(func() {
-		file_Schema_game_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_Schema_game_proto_rawDesc), len(file_Schema_game_proto_rawDesc)))
+func file_game_proto_rawDescGZIP() []byte {
+	file_game_proto_rawDescOnce.Do(func() {
+		file_game_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_game_proto_rawDesc), len(file_game_proto_rawDesc)))
 	})
-	return file_Schema_game_proto_rawDescData
+	return file_game_proto_rawDescData
 }
 
-var file_Schema_game_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_Schema_game_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
-var file_Schema_game_proto_goTypes = []any{
+var file_game_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_game_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_game_proto_goTypes = []any{
 	(OpCode)(0),              // 0: api.OpCode
 	(*Card)(nil),             // 1: api.Card
 	(*HandUpdatePacket)(nil), // 2: api.HandUpdatePacket
@@ -598,7 +598,7 @@ var file_Schema_game_proto_goTypes = []any{
 	(*PlayCardRequest)(nil),  // 7: api.PlayCardRequest
 	(*TurnUpdatePacket)(nil), // 8: api.TurnUpdatePacket
 }
-var file_Schema_game_proto_depIdxs = []int32{
+var file_game_proto_depIdxs = []int32{
 	1, // 0: api.HandUpdatePacket.hand:type_name -> api.Card
 	1, // 1: api.MatchStartPacket.hand:type_name -> api.Card
 	1, // 2: api.MatchStatePacket.board:type_name -> api.Card
@@ -610,27 +610,27 @@ var file_Schema_game_proto_depIdxs = []int32{
 	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_Schema_game_proto_init() }
-func file_Schema_game_proto_init() {
-	if File_Schema_game_proto != nil {
+func init() { file_game_proto_init() }
+func file_game_proto_init() {
+	if File_game_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_Schema_game_proto_rawDesc), len(file_Schema_game_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_game_proto_rawDesc), len(file_game_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_Schema_game_proto_goTypes,
-		DependencyIndexes: file_Schema_game_proto_depIdxs,
-		EnumInfos:         file_Schema_game_proto_enumTypes,
-		MessageInfos:      file_Schema_game_proto_msgTypes,
+		GoTypes:           file_game_proto_goTypes,
+		DependencyIndexes: file_game_proto_depIdxs,
+		EnumInfos:         file_game_proto_enumTypes,
+		MessageInfos:      file_game_proto_msgTypes,
 	}.Build()
-	File_Schema_game_proto = out.File
-	file_Schema_game_proto_goTypes = nil
-	file_Schema_game_proto_depIdxs = nil
+	File_game_proto = out.File
+	file_game_proto_goTypes = nil
+	file_game_proto_depIdxs = nil
 }

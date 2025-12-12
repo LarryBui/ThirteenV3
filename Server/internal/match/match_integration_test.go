@@ -94,7 +94,7 @@ func TestMatchStartFlowDispatchesMessages(t *testing.T) {
 	m.MatchJoin(context.Background(), logger, nil, nil, dispatcher, 0, s, []runtime.Presence{p1, p2})
 	dispatcher.reset()
 
-	startMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
+	startMsg := stubMatchData{op: int64(pb.OpCode_OP_GAME_START_REQUEST), userID: "p1"}
 	m.handleMessage(s, dispatcher, logger, startMsg)
 
 	if len(dispatcher.msgs) == 0 {
@@ -104,7 +104,7 @@ func TestMatchStartFlowDispatchesMessages(t *testing.T) {
 	var startCount, turnCount int
 	for _, msg := range dispatcher.msgs {
 		switch pb.OpCode(msg.op) {
-		case pb.OpCode_OP_MATCH_START:
+		case pb.OpCode_OP_GAME_START:
 			startCount++
 			packet := &pb.MatchStartPacket{}
 			if err := proto.Unmarshal(msg.data, packet); err != nil {
@@ -212,7 +212,7 @@ func TestGameOverManagement(t *testing.T) {
 	dispatcher.reset()
 
 	// --- Simulate game start ---
-	startMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
+	startMsg := stubMatchData{op: int64(pb.OpCode_OP_GAME_START_REQUEST), userID: "p1"}
 	m.handleMessage(s, dispatcher, logger, startMsg)
 	dispatcher.reset()
 
@@ -267,7 +267,7 @@ func TestGameOverManagement(t *testing.T) {
 	}
 
 	// --- Simulate starting a new game ---
-	startNewGameMsg := stubMatchData{op: int64(pb.OpCode_OP_MATCH_START_REQUEST), userID: "p1"}
+	startNewGameMsg := stubMatchData{op: int64(pb.OpCode_OP_GAME_START_REQUEST), userID: "p1"}
 	m.handleMessage(s, dispatcher, logger, startNewGameMsg)
 	dispatcher.reset()
 

@@ -35,13 +35,13 @@ namespace TienLen.Gen {
             "GAQgASgJEhIKCnBsYXllcl9pZHMYBSADKAkiJwoPUGxheUNhcmRSZXF1ZXN0",
             "EhQKDGNhcmRfaW5kaWNlcxgBIAMoBSJtChBUdXJuVXBkYXRlUGFja2V0EhgK",
             "EGFjdGl2ZV9wbGF5ZXJfaWQYASABKAkSJAoRbGFzdF9wbGF5ZWRfY2FyZHMY",
-            "AiADKAsyCS5hcGkuQ2FyZBIZChFzZWNvbmRzX3JlbWFpbmluZxgDIAEoBSrq",
-            "AQoGT3BDb2RlEg4KCk9QX1VOS05PV04QABISCg5PUF9NQVRDSF9TVEFSVBAB",
-            "EhAKDE9QX1BMQVlfQ0FSRBACEhIKDk9QX1RVUk5fVVBEQVRFEAMSDAoIT1Bf",
-            "RVJST1IQBBIaChZPUF9NQVRDSF9TVEFSVF9SRVFVRVNUEAUSEwoPT1BfT1dO",
-            "RVJfVVBEQVRFEAYSEAoMT1BfR0FNRV9PVkVSEAcSEgoOT1BfTUFUQ0hfU1RB",
-            "VEUQCBISCg5PUF9IQU5EX1VQREFURRAJEgsKB09QX1BBU1MQChIQCgxPUF9S",
-            "T1VORF9FTkQQC0IUWgQuL3BiqgILVGllbkxlbi5HZW5iBnByb3RvMw=="));
+            "AiADKAsyCS5hcGkuQ2FyZBIZChFzZWNvbmRzX3JlbWFpbmluZxgDIAEoBSro",
+            "AQoGT3BDb2RlEg4KCk9QX1VOS05PV04QABIRCg1PUF9HQU1FX1NUQVJUEAES",
+            "EAoMT1BfUExBWV9DQVJEEAISEgoOT1BfVFVSTl9VUERBVEUQAxIMCghPUF9F",
+            "UlJPUhAEEhkKFU9QX0dBTUVfU1RBUlRfUkVRVUVTVBAFEhMKD09QX09XTkVS",
+            "X1VQREFURRAGEhAKDE9QX0dBTUVfT1ZFUhAHEhIKDk9QX01BVENIX1NUQVRF",
+            "EAgSEgoOT1BfSEFORF9VUERBVEUQCRILCgdPUF9QQVNTEAoSEAoMT1BfUk9V",
+            "TkRfRU5EEAtCFFoELi9wYqoCC1RpZW5MZW4uR2VuYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::TienLen.Gen.OpCode), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -67,7 +67,7 @@ namespace TienLen.Gen {
     /// <summary>
     /// Server -> Client (Deal cards)
     /// </summary>
-    [pbr::OriginalName("OP_MATCH_START")] OpMatchStart = 1,
+    [pbr::OriginalName("OP_GAME_START")] OpGameStart = 1,
     /// <summary>
     /// Client -> Server (Player move)
     /// </summary>
@@ -83,7 +83,7 @@ namespace TienLen.Gen {
     /// <summary>
     /// Client -> Server (Host initiates game start)
     /// </summary>
-    [pbr::OriginalName("OP_MATCH_START_REQUEST")] OpMatchStartRequest = 5,
+    [pbr::OriginalName("OP_GAME_START_REQUEST")] OpGameStartRequest = 5,
     /// <summary>
     /// Server -> Client (Notify new owner)
     /// </summary>

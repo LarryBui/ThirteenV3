@@ -114,7 +114,7 @@ namespace TienLen.Unity.Infrastructure.Network
         public async Task SendStartMatchAsync()
         {
             if (_currentMatch == null) return;
-            await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpMatchStartRequest, System.Array.Empty<byte>());
+            await _socket.SendMatchStateAsync(_currentMatch.Id, (long)OpCode.OpGameStartRequest, System.Array.Empty<byte>());
         }
 
         public async void Dispose()
