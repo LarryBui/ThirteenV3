@@ -9,7 +9,7 @@ func TestGameStartDealsHandsAndSetsTurn(t *testing.T) {
 	rand.Seed(1)
 	g := NewGame()
 	players := []string{"p1", "p2", "p3", "p4"}
-	events, err := g.Start(players, "p1")
+	events, err := g.Start(players, "p1", "")
 	if err != nil {
 		t.Fatalf("Start returned error: %v", err)
 	}

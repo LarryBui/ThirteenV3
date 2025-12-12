@@ -94,7 +94,7 @@ func (g *Game) Snapshot() Snapshot {
 	}
 }
 
-func (g *Game) Start(players []string, ownerID string) ([]Event, error) {
+func (g *Game) Start(players []string, ownerID string, lastWinnerID string) ([]Event, error) {
 	if len(players) == 0 {
 		return nil, errors.New("no players provided")
 	}
@@ -120,7 +120,39 @@ func (g *Game) Start(players []string, ownerID string) ([]Event, error) {
 		g.Hands[uid] = hand
 	}
 
-	g.CurrentIdx = 0
+	// Determine starting player
+	startIndex := -1
+
+	// 1. Try last winner
+	if lastWinnerID != "" {
+		for i, uid := range g.TurnOrder {
+			if uid == lastWinnerID {
+				startIndex = i
+				break
+			}
+		}
+	}
+
+	// 2. Fallback to smallest card (if no last winner or last winner left)
+	if startIndex == -1 {
+		lowestPower := int32(1000) // Start high
+		lowestPlayerIndex := 0
+
+		for i, uid := range g.TurnOrder {
+			hand := g.Hands[uid]
+			if len(hand) > 0 {
+				// Hands are sorted, so the first card is the smallest
+				power := cardPower(hand[0])
+				if power < lowestPower {
+					lowestPower = power
+					lowestPlayerIndex = i
+				}
+			}
+		}
+		startIndex = lowestPlayerIndex
+	}
+
+	g.CurrentIdx = startIndex
 	g.Board = nil
 	g.RoundSkippers = make(map[string]bool)
 	g.LastActor = ""

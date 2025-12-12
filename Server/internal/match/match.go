@@ -22,6 +22,7 @@ type MatchState struct {
 	Game       *tienlen.Game               `json:"-"`
 	Seats      [4]string                   `json:"seats"`           // seat index -> userID (empty string means free)
 	SeatByUser map[string]int              `json:"seat_by_user_id"` // userID -> seat index
+	LastGameWinnerID string                  `json:"last_game_winner_id"` // userID of the last game's winner
 }
 
 type Match struct{}
@@ -173,6 +174,17 @@ func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher,
 			return
 		}
 		adapter.DispatchEvents(dispatcher, s.Presences, events)
+
+		// Check for Game Over event and update LastGameWinnerID
+		for _, event := range events {
+			if gameOverEvent, ok := event.(tienlen.GameOver); ok {
+				s.LastGameWinnerID = gameOverEvent.WinnerID
+				logger.Info("Game Over detected. LastGameWinnerID set to: %s", s.LastGameWinnerID)
+				// Potentially broadcast this update to clients or handle match termination here
+				break
+			}
+		}
+
 	case pb.OpCode_OP_PASS:
 		events, err := s.Game.Pass(senderID)
 		if err != nil {
@@ -192,7 +204,7 @@ func (m *Match) startMatch(s *MatchState, dispatcher runtime.MatchDispatcher) er
 	}
 
 	rand.Seed(time.Now().UnixNano())
-	events, err := s.Game.Start(activePlayers, s.OwnerID)
+	events, err := s.Game.Start(activePlayers, s.OwnerID, s.LastGameWinnerID)
 	if err != nil {
 		return err
 	}

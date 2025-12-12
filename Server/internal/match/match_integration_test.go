@@ -139,7 +139,7 @@ func TestMatchPlayAndPassFlow(t *testing.T) {
 
 	// Prepare deterministic game state.
 	s.Game = tienlen.NewGame()
-	_, _ = s.Game.Start([]string{"p1", "p2"}, "p1")
+	_, _ = s.Game.Start([]string{"p1", "p2"}, "p1", "")
 	s.Game.Hands = map[string][]tienlen.Card{
 		"p1": {{Rank: 1, Suit: 0}, {Rank: 3, Suit: 0}},
 		"p2": {{Rank: 2, Suit: 0}, {Rank: 4, Suit: 0}},
