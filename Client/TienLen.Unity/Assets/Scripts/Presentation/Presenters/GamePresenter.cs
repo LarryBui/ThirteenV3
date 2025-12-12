@@ -304,10 +304,14 @@ namespace TienLen.Unity.Presentation.Presenters
         private void OnGameModelGameOver(string winnerId)
         {
             _logger.LogInformation($"Game Over! Winner: {winnerId}");
+            // Clear the local hand view when a game ends so stale cards are not shown
+            PlayerHandView?.RenderHand(new List<Card>());
+            if (StartGameButton == null) return;
             string localUserId = _gameSession.CurrentRoom?.Self?.UserId;
+            bool isLocalPlayerOwner = !string.IsNullOrEmpty(localUserId) && localUserId == _gameModel.MatchOwnerId;
             
-            // Ensure Start Game button is visible for the owner so they can restart
-            // UpdateStartGameButtonVisibility();
+            // Only show StartGameButton if local player is owner AND game is NOT playing
+            StartGameButton.gameObject.SetActive(isLocalPlayerOwner && !_gameModel.IsPlaying);
         }
 
         private void OnGameModelPlayerIdsUpdated(IReadOnlyList<string> playerIds)
