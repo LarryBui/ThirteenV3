@@ -154,7 +154,7 @@ func (m *Match) handleMessage(s *MatchState, dispatcher runtime.MatchDispatcher,
 	case pb.OpCode_OP_GAME_START_REQUEST:
 		if s.Game.IsPlaying() {
 			logger.Warn("Rejecting start request. Game is playing. Winners: %d, TurnOrder: %d, IsPlaying: %v", len(s.Game.Winners), len(s.Game.TurnOrder), s.Game.IsPlaying())
-			sendError(dispatcher, senderPresence, "Match already started")
+			sendError(dispatcher, senderPresence, "Game already started")
 			return
 		}
 		if err := m.startNewGame(s, dispatcher); err != nil {

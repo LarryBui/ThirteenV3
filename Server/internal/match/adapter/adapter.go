@@ -11,8 +11,8 @@ import (
 func DispatchEvents(dispatcher runtime.MatchDispatcher, presences map[string]runtime.Presence, events []tienlen.Event) {
 	for _, ev := range events {
 		switch e := ev.(type) {
-		case tienlen.MatchStarted:
-			sendMatchStarted(dispatcher, presences, e)
+		case tienlen.GameStarted:
+			sendGameStarted(dispatcher, presences, e)
 		case tienlen.HandUpdated:
 			sendHandUpdate(dispatcher, presences, e)
 		case tienlen.TurnChanged:
@@ -59,7 +59,7 @@ func SendHand(dispatcher runtime.MatchDispatcher, userID string, cards []tienlen
 	dispatcher.BroadcastMessage(int64(pb.OpCode_OP_HAND_UPDATE), data, receivers, nil, true)
 }
 
-func sendMatchStarted(dispatcher runtime.MatchDispatcher, presences map[string]runtime.Presence, ev tienlen.MatchStarted) {
+func sendGameStarted(dispatcher runtime.MatchDispatcher, presences map[string]runtime.Presence, ev tienlen.GameStarted) {
 	for playerID, hand := range ev.Hands {
 		presence, ok := presences[playerID]
 		if !ok {

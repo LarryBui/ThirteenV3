@@ -17,12 +17,12 @@ func TestGameStartDealsHandsAndSetsTurn(t *testing.T) {
 		t.Fatalf("expected game to be playing after start")
 	}
 	if len(events) != 2 {
-		t.Fatalf("expected 2 events (MatchStarted + TurnChanged), got %d", len(events))
+		t.Fatalf("expected 2 events (GameStarted + TurnChanged), got %d", len(events))
 	}
 
-	ms, ok := events[0].(MatchStarted)
+	ms, ok := events[0].(GameStarted)
 	if !ok {
-		t.Fatalf("first event not MatchStarted")
+		t.Fatalf("first event not GameStarted")
 	}
 	for id, hand := range ms.Hands {
 		if len(hand) != 13 {
@@ -106,9 +106,9 @@ func setupDeterministicGame(players []string, owner string, hands map[string][]C
 func TestGameOverWhenThirdPlayerHandEmpty(t *testing.T) {
 	players := []string{"p1", "p2", "p3", "p4"}
 	hands := map[string][]Card{
-		"p1": {{Rank: 0, Suit: 0}}, // One card for p1
-		"p2": {{Rank: 1, Suit: 0}}, // One card for p2
-		"p3": {{Rank: 2, Suit: 0}}, // One card for p3
+		"p1": {{Rank: 0, Suit: 0}},                     // One card for p1
+		"p2": {{Rank: 1, Suit: 0}},                     // One card for p2
+		"p3": {{Rank: 2, Suit: 0}},                     // One card for p3
 		"p4": {{Rank: 3, Suit: 0}, {Rank: 4, Suit: 0}}, // Two cards for p4 (the eventual loser)
 	}
 	g := setupDeterministicGame(players, "p1", hands)
@@ -129,7 +129,7 @@ func TestGameOverWhenThirdPlayerHandEmpty(t *testing.T) {
 		t.Fatalf("p1 PlayCards error: %v", err)
 	}
 	processEvents(events, &gameOverEvent, &playerFinishedEvents)
-	
+
 	if gameOverEvent != nil {
 		t.Fatal("expected no GameOver after 1st player finishes")
 	}
@@ -157,7 +157,7 @@ func TestGameOverWhenThirdPlayerHandEmpty(t *testing.T) {
 		t.Fatalf("p2 PlayCards error: %v", err)
 	}
 	processEvents(events, &gameOverEvent, &playerFinishedEvents)
-	
+
 	if gameOverEvent != nil {
 		t.Fatal("expected no GameOver after 2nd player finishes")
 	}
@@ -185,7 +185,7 @@ func TestGameOverWhenThirdPlayerHandEmpty(t *testing.T) {
 		t.Fatalf("p3 PlayCards error: %v", err)
 	}
 	processEvents(events, &gameOverEvent, &playerFinishedEvents)
-	
+
 	if gameOverEvent == nil || gameOverEvent.WinnerID != "p1" { // WinnerID is 1st place
 		t.Fatalf("expected GameOver with winner p1, got %+v", gameOverEvent)
 	}
@@ -260,10 +260,16 @@ func TestGameEndsWhenOnePlayerRemains_3Players(t *testing.T) {
 
 	// p1 finishes
 	events, err := g.PlayCards("p1", []int{0})
-	if err != nil { t.Fatalf("p1 error: %v", err) }
+	if err != nil {
+		t.Fatalf("p1 error: %v", err)
+	}
 	processEvents(events, &gameOverEvent, &playerFinishedEvents)
-	if gameOverEvent != nil { t.Fatal("expected game to continue after p1 finishes") }
-	if !g.IsPlaying() { t.Fatal("expected game to continue") }
+	if gameOverEvent != nil {
+		t.Fatal("expected game to continue after p1 finishes")
+	}
+	if !g.IsPlaying() {
+		t.Fatal("expected game to continue")
+	}
 	playerFinishedEvents = nil
 
 	// p2 finishes -> Game Should End (2 winners, 1 loser)
@@ -272,7 +278,9 @@ func TestGameEndsWhenOnePlayerRemains_3Players(t *testing.T) {
 		t.Fatalf("expected turn to satisfy p2, got %s", g.TurnOrder[g.CurrentIdx])
 	}
 	events, err = g.PlayCards("p2", []int{0})
-	if err != nil { t.Fatalf("p2 error: %v", err) }
+	if err != nil {
+		t.Fatalf("p2 error: %v", err)
+	}
 	processEvents(events, &gameOverEvent, &playerFinishedEvents)
 
 	if gameOverEvent == nil {
@@ -321,7 +329,7 @@ func TestGameEndsWhenOnePlayerRemains_1Player(t *testing.T) {
 // Helper to extract events for testing
 func processEvents(events []Event, gameOver **GameOver, playerFinished *[]PlayerFinished) {
 	// Clear previous player finished events before processing new ones
-	*playerFinished = (*playerFinished)[:0] 
+	*playerFinished = (*playerFinished)[:0]
 	for _, ev := range events {
 		if goEv, ok := ev.(GameOver); ok {
 			*gameOver = &goEv

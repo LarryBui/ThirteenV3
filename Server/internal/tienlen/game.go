@@ -9,7 +9,7 @@ import (
 // Event marker interface implemented by all domain events.
 type Event interface{}
 
-type MatchStarted struct {
+type GameStarted struct {
 	Hands     map[string][]Card
 	TurnOrder []string
 	OwnerID   string
@@ -190,7 +190,7 @@ func (g *Game) Start(players []string, ownerID string, lastWinnerID string) ([]E
 	g.isPlaying = true
 
 	events := []Event{
-		MatchStarted{
+		GameStarted{
 			Hands:     g.HandsCopy(),
 			TurnOrder: turnOrder,
 			OwnerID:   g.OwnerID,
