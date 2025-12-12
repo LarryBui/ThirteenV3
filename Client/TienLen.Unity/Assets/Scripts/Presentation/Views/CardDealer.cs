@@ -119,12 +119,17 @@ namespace TienLen.Unity.Presentation.Views
                 cardRect.anchoredPosition = Vector2.zero; // Reset to center relative to parent
 
                 cardRect.DOAnchorPos(targetLocalPosition, _dealDuration)
-                    .SetEase(Ease.OutQuad)
+                    .SetEase(Ease.OutCubic)
                     .OnComplete(() => 
                     {
                         cardObj.SetActive(false);
                         if (isSouth) OnSouthCardArrived?.Invoke();
                     });
+                
+                // Add rotation animation
+                cardRect.DORotate(new Vector3(0, 0, 360), _dealDuration, RotateMode.FastBeyond360)
+                    .SetEase(Ease.Linear); // Reverted to Linear
+
             }
             
             var view = cardObj.GetComponent<CardView>();
