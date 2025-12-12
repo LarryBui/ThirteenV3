@@ -85,29 +85,155 @@ func TestPlayPassEndsRound(t *testing.T) {
 	}
 }
 
-func TestGameOverWhenHandEmpty(t *testing.T) {
+func setupDeterministicGame(players []string, owner string, hands map[string][]Card) *Game {
 	g := NewGame()
-	g.TurnOrder = []string{"p1"}
-	g.Hands = map[string][]Card{"p1": {{Rank: 1, Suit: 0}}}
-	g.CurrentIdx = 0
+	g.TurnOrder = make([]string, len(players))
+	copy(g.TurnOrder, players) // Set explicit turn order
+	g.OwnerID = owner
+	g.Hands = make(map[string][]Card, len(hands))
+	for k, v := range hands {
+		handCopy := make([]Card, len(v))
+		copy(handCopy, v)
+		SortHand(handCopy) // Ensure hands are sorted
+		g.Hands[k] = handCopy
+	}
+	g.CurrentIdx = 0 // Start with the first player in turnOrder
 	g.isPlaying = true
+	g.RoundSkippers = make(map[string]bool)
+	return g
+}
 
+func TestGameOverWhenThirdPlayerHandEmpty(t *testing.T) {
+	players := []string{"p1", "p2", "p3", "p4"}
+	hands := map[string][]Card{
+		"p1": {{Rank: 0, Suit: 0}}, // One card for p1
+		"p2": {{Rank: 1, Suit: 0}}, // One card for p2
+		"p3": {{Rank: 2, Suit: 0}}, // One card for p3
+		"p4": {{Rank: 3, Suit: 0}, {Rank: 4, Suit: 0}}, // Two cards for p4 (the eventual loser)
+	}
+	g := setupDeterministicGame(players, "p1", hands)
+
+	// Ensure p1 is the current turn player
+	if g.TurnOrder[g.CurrentIdx] != "p1" {
+		t.Fatalf("expected turn to be p1, got %s", g.TurnOrder[g.CurrentIdx])
+	}
+
+	var events []Event
+	var gameOverEvent *GameOver
+	var playerFinishedEvents []PlayerFinished
+
+	// --- Player 1 plays last card (1st winner) ---
+	g.Board = nil // Clear board to allow any card
 	events, err := g.PlayCards("p1", []int{0})
 	if err != nil {
-		t.Fatalf("PlayCards error: %v", err)
+		t.Fatalf("p1 PlayCards error: %v", err)
 	}
-	gameOver := false
+	processEvents(events, &gameOverEvent, &playerFinishedEvents)
+	
+	if gameOverEvent != nil {
+		t.Fatal("expected no GameOver after 1st player finishes")
+	}
+	if len(playerFinishedEvents) != 1 || playerFinishedEvents[0].PlayerID != "p1" || playerFinishedEvents[0].Rank != 1 {
+		t.Fatalf("expected p1 as 1st finisher, got %+v", playerFinishedEvents)
+	}
+	if !g.IsPlaying() { // Check if game continues
+		t.Fatal("expected game to continue after 1st player finishes")
+	}
+	if len(g.Winners) != 1 || g.Winners[0] != "p1" {
+		t.Fatalf("expected p1 in Winners, got %v", g.Winners)
+	}
+	if !g.FinishedPlayers["p1"] {
+		t.Fatalf("expected p1 to be in FinishedPlayers")
+	}
+	playerFinishedEvents = nil // Reset for next iteration
+
+	// --- Player 2 plays last card (2nd winner) ---
+	// g.CurrentIdx should have advanced to p2 after p1's turn and p1 was skipped
+	if g.TurnOrder[g.CurrentIdx] != "p2" {
+		t.Fatalf("expected turn to be p2, got %s", g.TurnOrder[g.CurrentIdx])
+	}
+	events, err = g.PlayCards("p2", []int{0})
+	if err != nil {
+		t.Fatalf("p2 PlayCards error: %v", err)
+	}
+	processEvents(events, &gameOverEvent, &playerFinishedEvents)
+	
+	if gameOverEvent != nil {
+		t.Fatal("expected no GameOver after 2nd player finishes")
+	}
+	if len(playerFinishedEvents) != 1 || playerFinishedEvents[0].PlayerID != "p2" || playerFinishedEvents[0].Rank != 2 {
+		t.Fatalf("expected p2 as 2nd finisher, got %+v", playerFinishedEvents)
+	}
+	if !g.IsPlaying() { // Check if game continues
+		t.Fatal("expected game to continue after 2nd player finishes")
+	}
+	if len(g.Winners) != 2 || g.Winners[1] != "p2" {
+		t.Fatalf("expected p2 in Winners, got %v", g.Winners)
+	}
+	if !g.FinishedPlayers["p2"] {
+		t.Fatalf("expected p2 to be in FinishedPlayers")
+	}
+	playerFinishedEvents = nil
+
+	// --- Player 3 plays last card (3rd winner - game over) ---
+	// g.CurrentIdx should have advanced to p3
+	if g.TurnOrder[g.CurrentIdx] != "p3" {
+		t.Fatalf("expected turn to be p3, got %s", g.TurnOrder[g.CurrentIdx])
+	}
+	events, err = g.PlayCards("p3", []int{0})
+	if err != nil {
+		t.Fatalf("p3 PlayCards error: %v", err)
+	}
+	processEvents(events, &gameOverEvent, &playerFinishedEvents)
+	
+	if gameOverEvent == nil || gameOverEvent.WinnerID != "p1" { // WinnerID is 1st place
+		t.Fatalf("expected GameOver with winner p1, got %+v", gameOverEvent)
+	}
+	if len(playerFinishedEvents) != 1 || playerFinishedEvents[0].PlayerID != "p3" || playerFinishedEvents[0].Rank != 3 {
+		t.Fatalf("expected p3 as 3rd finisher, got %+v", playerFinishedEvents)
+	}
+	if g.IsPlaying() { // Check if game has stopped
+		t.Fatal("expected game to stop after 3rd player finishes")
+	}
+	if len(g.Winners) != 3 || g.Winners[2] != "p3" {
+		t.Fatalf("expected p3 in Winners, got %v", g.Winners)
+	}
+	if !g.FinishedPlayers["p3"] {
+		t.Fatalf("expected p3 to be in FinishedPlayers")
+	}
+	// PlayerFinishedEvents for p3 is now processed, no need to reset, test is ending.
+
+	// Verify p4 is the loser (last remaining active player)
+	if g.FinishedPlayers["p4"] {
+		t.Fatalf("expected p4 NOT to be in FinishedPlayers")
+	}
+	if len(g.Hands["p4"]) != 2 {
+		t.Fatalf("expected p4 to still have 2 cards, got %d", len(g.Hands["p4"]))
+	}
+}
+
+// Helper to extract events for testing
+func processEvents(events []Event, gameOver **GameOver, playerFinished *[]PlayerFinished) {
+	// Clear previous player finished events before processing new ones
+	*playerFinished = (*playerFinished)[:0] 
 	for _, ev := range events {
-		if _, ok := ev.(GameOver); ok {
-			gameOver = true
+		if goEv, ok := ev.(GameOver); ok {
+			*gameOver = &goEv
+		}
+		if pfEv, ok := ev.(PlayerFinished); ok {
+			*playerFinished = append(*playerFinished, pfEv)
 		}
 	}
-	if !gameOver {
-		t.Fatalf("expected GameOver event when hand is empty")
+}
+
+// Helper to find player index in TurnOrder
+func findPlayerIndex(turnOrder []string, playerID string) int {
+	for i, id := range turnOrder {
+		if id == playerID {
+			return i
+		}
 	}
-	if g.IsPlaying() {
-		t.Fatalf("expected game to stop after GameOver")
-	}
+	return -1
 }
 
 func TestPassSkipsPlayerAndAdvancesTurn(t *testing.T) {
